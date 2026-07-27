@@ -42,7 +42,7 @@ export async function applyCommand(
   if (!existsSync(patchDir)) {
     logger.error(`Patch not found: ${patchId}`, { patchId, event: "patch_not_found" });
     if (!logger.isJsonMode()) {
-      console.log(chalk.dim("Run \"contractbot heal\" first to generate patches."));
+      console.log(chalk.dim("Run \"contractbot suggest <api>\" first to generate a patch."));
     }
     return;
   }

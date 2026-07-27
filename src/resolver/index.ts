@@ -1,6 +1,5 @@
 export {
   resolveApiContract,
   resolveFromWebSearch,
-  ResolveOptions,
-  ResolveResult,
 } from "./resolve.js";
+export type { ResolveOptions, ResolveResult } from "./resolve.js";

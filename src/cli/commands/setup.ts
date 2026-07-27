@@ -1,7 +1,5 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { createInterface } from "readline";
-import { spawn } from "child_process";
 import chalk from "chalk";
 import ora from "ora";
 import { loadConfig, saveConfig } from "../../config/loader.js";
@@ -18,14 +16,13 @@ import { logger } from "../../logger.js";
 interface SetupOptions {
   dir: string;
   skipDetect?: boolean;
-  secret?: boolean;
   force?: boolean;
   webSearch?: boolean;
 }
 
 /**
  * One-shot onboarding: discover → resolve → write config + GitHub Action.
- * Remaining human steps: add CONTRACTBOT_API_KEY (or --secret) and push.
+ * Remaining human steps: approve contract baselines and push.
  */
 export async function setupCommand(options: SetupOptions): Promise<void> {
   const projectDir = resolve(options.dir);
@@ -41,8 +38,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     }
     await resolvePending(configPath, options.webSearch);
     await ensureAction(projectDir, options.force);
-    const secretOk = await maybeSetSecret(options.secret, projectDir);
-    printNextSteps(configPath, secretOk);
+    printNextSteps(configPath);
     return;
   }
 
@@ -154,10 +150,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   // 4. Write Action
   await ensureAction(projectDir, true);
 
-  // 5. Optional secret
-  const secretOk = await maybeSetSecret(options.secret, projectDir);
-
-  printNextSteps(configPath, secretOk);
+  printNextSteps(configPath);
 }
 
 async function resolvePending(
@@ -201,106 +194,25 @@ async function ensureAction(projectDir: string, force?: boolean): Promise<void> 
   }
 }
 
-async function maybeSetSecret(
-  wantSecret: boolean | undefined,
-  projectDir: string,
-): Promise<boolean> {
-  if (!wantSecret) return false;
-
-  const ghOk = await commandExists("gh");
-  if (!ghOk) {
-    if (!logger.isJsonMode()) {
-      console.log(
-        chalk.yellow(
-          "⚠ --secret requires GitHub CLI (gh). Install: https://cli.github.com",
-        ),
-      );
-      console.log(
-        chalk.dim(
-          "  Or add the secret manually: gh secret set CONTRACTBOT_API_KEY",
-        ),
-      );
-    }
-    return false;
-  }
-
-  let key =
-    process.env.CONTRACTBOT_API_KEY ||
-    process.env.LLM_API_KEY ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY;
-
-  if (!key && !logger.isJsonMode()) {
-    key = await promptSecret(
-      "Paste your LLM API key (stored as GitHub secret CONTRACTBOT_API_KEY): ",
-    );
-  }
-
-  if (!key) {
-    if (!logger.isJsonMode()) {
-      console.log(chalk.yellow("⚠ No key provided — skip secret setup"));
-    }
-    return false;
-  }
-
-  const spinner = logger.isJsonMode()
-    ? null
-    : ora("Setting GitHub secret CONTRACTBOT_API_KEY...").start();
-
-  try {
-    await runGhSecretSet("CONTRACTBOT_API_KEY", key, projectDir);
-    spinner?.succeed("Set repository secret CONTRACTBOT_API_KEY");
-    return true;
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    spinner?.fail(`Could not set secret: ${msg}`);
-    if (!logger.isJsonMode()) {
-      console.log(
-        chalk.dim("  Add it in GitHub → Settings → Secrets → Actions"),
-      );
-    }
-    return false;
-  }
-}
-
-function printNextSteps(configPath: string, secretDone?: boolean): void {
+function printNextSteps(configPath: string): void {
   if (logger.isJsonMode()) return;
 
-  const remaining = secretDone ? 1 : 2;
   console.log();
-  console.log(
-    chalk.white.bold(
-      remaining === 1 ? "Almost done — 1 step left:" : "Almost done — 2 steps left:",
-    ),
-  );
+  console.log(chalk.white.bold("Almost done — 2 steps left:"));
   console.log();
 
-  let n = 1;
-  if (!secretDone) {
-    console.log(
-      chalk.cyan(`  ${n}.`) +
-        ` Add repo secret ${chalk.white("CONTRACTBOT_API_KEY")} (your LLM key)`,
-    );
-    console.log(
-      chalk.dim(
-        `     gh secret set CONTRACTBOT_API_KEY   # or re-run: contractbot setup --secret`,
-      ),
-    );
-    n++;
-  } else {
-    console.log(chalk.dim("  ✓ Secret configured"));
-  }
-
-  console.log(chalk.cyan(`  ${n}.`) + " Commit and push:");
+  console.log(chalk.cyan("  1.") + " Fetch and review the initial baselines:");
+  console.log(chalk.dim("     contractbot baseline"));
+  console.log(chalk.cyan("  2.") + " Commit and push:");
   console.log(
     chalk.dim(
-      `     git add ${configPath} .github/workflows/contractbot.yml && git commit -m "chore: add contractbot" && git push`,
+      `     git add ${configPath} .contractbot/baselines .github/workflows/contractbot.yml && git commit -m "chore: add contractbot" && git push`,
     ),
   );
   console.log();
   console.log(
     chalk.dim(
-      "Watch runs every 15m (no LLM). Fix PRs open only when something changed.",
+      "CI compares only against approved baselines. AI suggestions are manual and local.",
     ),
   );
   console.log();
@@ -315,47 +227,4 @@ function confidenceBadge(confidence: "high" | "medium" | "low"): string {
     case "low":
       return chalk.dim("●");
   }
-}
-
-function commandExists(cmd: string): Promise<boolean> {
-  return new Promise((resolvePromise) => {
-    const child = spawn(cmd, ["--version"], {
-      stdio: "ignore",
-      shell: false,
-    });
-    child.on("error", () => resolvePromise(false));
-    child.on("close", (code) => resolvePromise(code === 0));
-  });
-}
-
-function runGhSecretSet(
-  name: string,
-  value: string,
-  cwd: string,
-): Promise<void> {
-  return new Promise((resolvePromise, reject) => {
-    const child = spawn("gh", ["secret", "set", name, "--body", value], {
-      cwd,
-      stdio: ["ignore", "pipe", "pipe"],
-    });
-    let stderr = "";
-    child.stderr?.on("data", (d: Buffer) => {
-      stderr += d.toString();
-    });
-    child.on("error", reject);
-    child.on("close", (code) => {
-      if (code === 0) resolvePromise();
-      else reject(new Error(stderr.trim() || `gh exited ${code}`));
-    });
-  });
-}
-
-function promptSecret(question: string): Promise<string> {
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  return new Promise((resolvePromise) => {
-    rl.question(question, (answer) => {
-      rl.close();
-      resolvePromise(answer.trim());
-    });
-  });
 }

@@ -3,14 +3,12 @@
 import { Command } from "commander";
 import { setupCommand } from "./commands/setup.js";
 import { initCommand } from "./commands/init.js";
-import { watchCommand } from "./commands/watch.js";
-import { healCommand } from "./commands/heal.js";
 import { applyCommand } from "./commands/apply.js";
 import { ciCommand } from "./commands/ci.js";
-import { prCommand } from "./commands/pr.js";
 import { resolveCommand } from "./commands/resolve.js";
 import { baselineCommand } from "./commands/baseline.js";
 import { acceptCommand } from "./commands/accept.js";
+import { suggestCommand } from "./commands/suggest.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -53,7 +51,6 @@ program
   )
   .option("-d, --dir <path>", "Project directory to scan", ".")
   .option("--skip-detect", "Skip auto-detection and create an empty config", false)
-  .option("--secret", "Set CONTRACTBOT_API_KEY via gh secret set (prompts or uses env)", false)
   .option("--force", "Overwrite existing workflow / re-init when config exists", false)
   .option("--web-search", "Allow one-time web search while resolving contracts", false)
   .action(setupCommand);
@@ -76,26 +73,22 @@ program
 
 program
   .command("watch")
-  .description("Fetch latest API specs / SDK versions and report changes since last check")
+  .description("Deprecated alias for a non-blocking compatibility check")
   .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
   .option("--min-urgency <level>", "Only check APIs at or above this urgency (critical, normal, low)", "low")
-  .action(watchCommand);
+  .action((options) =>
+    ciCommand({
+      config: options.config,
+      minUrgency: options.minUrgency,
+      failOn: "none",
+    }),
+  );
 
 program
-  .command("heal")
-  .description(
-    "Detect API changes and generate code patches for your codebase",
-  )
+  .command("suggest <api>")
+  .description("Draft a local migration patch for a confirmed pending change-set")
   .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
-  .option(
-    "--dry-run",
-    "Show what would be changed without generating patches",
-    false,
-  )
-  .option("--preview", "Show detailed diff preview with confidence scores", false)
-  .option("--validate", "Run typecheck and tests after patching; retry on failure", false)
-  .option("--min-urgency <level>", "Only heal APIs at or above this urgency", "low")
-  .action(healCommand);
+  .action(suggestCommand);
 
 program
   .command("apply <patchId>")
@@ -105,20 +98,6 @@ program
   .option("--interactive", "Confirm each file change interactively", false)
   .option("--undo", "Undo a previously applied patch using backup ID", false)
   .action(applyCommand);
-
-program
-  .command("pr")
-  .description("Detect API changes, generate fixes, and open PRs")
-  .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
-  .option("--base-branch <branch>", "Base branch for PRs (defaults to current branch)")
-  .option("--per-file", "Create one PR per affected file instead of one grouped PR", false)
-  .option("--draft", "Create PRs as drafts", false)
-  .option("--labels <labels>", "Comma-separated labels to add", "contractbot,automated")
-  .option("--reviewers <users>", "Comma-separated GitHub usernames to request review from")
-  .option("--assignees <users>", "Comma-separated GitHub usernames to assign")
-  .option("--dry-run", "Show what PRs would be created without actually creating them", false)
-  .option("--min-urgency <level>", "Only process APIs at or above this urgency", "low")
-  .action(prCommand);
 
 program
   .command("ci")

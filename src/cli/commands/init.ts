@@ -123,14 +123,13 @@ export async function initCommand(options: InitOptions): Promise<void> {
     console.log();
     console.log(chalk.white("Tip: prefer one-shot setup:"));
     console.log(chalk.dim("  contractbot setup          # discover + resolve + GitHub Action"));
-    console.log(chalk.dim("  contractbot setup --secret # also set CONTRACTBOT_API_KEY via gh"));
     console.log();
     console.log(chalk.white("Or continue manually:"));
     if (unresolved > 0) {
       console.log(chalk.dim("  1. contractbot resolve"));
     }
     console.log(chalk.dim("  • contractbot ci --generate-action"));
-    console.log(chalk.dim("  • Add secret CONTRACTBOT_API_KEY, then commit & push"));
+    console.log(chalk.dim("  • Run contractbot baseline, then commit & push"));
     console.log();
   }
 

@@ -126,8 +126,7 @@ program
   .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
   .option("--fail-on <level>", "Exit non-zero on: breaking, any, none", "breaking")
   .option("--output <path>", "Write JSON report to file")
-  .option("--generate-action", "Generate a GitHub Actions workflow (watch → heal → PR)", false)
-  .option("--auto-heal", "Automatically generate patches for breaking changes", false)
+  .option("--generate-action", "Generate a GitHub Actions compatibility-check workflow", false)
   .option("--min-urgency <level>", "Only check APIs at or above this urgency", "low")
   .action(ciCommand);
 

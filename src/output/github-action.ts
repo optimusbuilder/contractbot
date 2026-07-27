@@ -32,14 +32,14 @@ function defaultVersion(): string {
 export const GITHUB_ACTION_RELATIVE_PATH = ".github/workflows/contractbot.yml";
 
 /**
- * Build the scheduled watch → conditional heal GitHub Actions workflow YAML.
+ * Build the scheduled compatibility-check GitHub Actions workflow YAML.
  */
 export function buildGithubActionYaml(version = defaultVersion()): string {
   const pkg = version === "latest" ? "contractbot" : `contractbot@${version}`;
 
-  return `name: contractbot — fast watch, heal only on change
+  return `name: contractbot — external API compatibility check
 
-# Detection is cheap (HTTP + ETag). BYOK LLM / PRs run only when something moved.
+# Contract checks are deterministic. Migration suggestions are always manual.
 on:
   schedule:
     - cron: '*/15 * * * *'   # every 15 minutes
@@ -48,15 +48,11 @@ on:
     branches: [main, master]
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
-  watch:
+  check:
     runs-on: ubuntu-latest
-    outputs:
-      has_changes: \${{ steps.check.outputs.has_changes }}
-      status: \${{ steps.check.outputs.status }}
     steps:
       - uses: actions/checkout@v4
 
@@ -67,7 +63,7 @@ jobs:
 
       - run: npm ci
 
-      - name: Restore contractbot cache (specs + ETags)
+      - name: Restore HTTP cache (ETags only; baselines remain in git)
         uses: actions/cache@v4
         with:
           path: .contractbot/cache
@@ -76,7 +72,7 @@ jobs:
             contractbot-\${{ hashFiles('.contractbot.yml') }}-
             contractbot-
 
-      - name: Watch API contracts (no LLM)
+      - name: Check API compatibility
         id: check
         run: npx ${pkg} ci --fail-on none --output api-report.json
 
@@ -85,67 +81,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: api-contract-report
-          path: api-report.json
+          path: |
+            api-report.json
+            .contractbot/changes
 
-      - name: Comment on PR when breaking
-        if: github.event_name == 'pull_request' && steps.check.outputs.status == 'breaking'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (!fs.existsSync('api-report.json')) return;
-            const report = JSON.parse(fs.readFileSync('api-report.json', 'utf8'));
-            const breaking = report.filter(r => r.status === 'breaking');
-            if (breaking.length === 0) return;
-            let body = '## :warning: Upstream API breaking changes\\n\\n';
-            body += 'Detected by cheap contract watch (no LLM). A fix PR may follow from the scheduled heal job.\\n\\n';
-            for (const r of breaking) {
-              body += '### ' + r.api + '\\n';
-              for (const c of r.changes || []) {
-                body += '- ' + c.description + '\\n';
-              }
-              body += '\\n';
-            }
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-  heal:
-    needs: watch
-    if: |
-      needs.watch.outputs.has_changes == 'true' &&
-      github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Restore contractbot cache
-        uses: actions/cache@v4
-        with:
-          path: .contractbot/cache
-          key: contractbot-\${{ hashFiles('.contractbot.yml') }}-\${{ github.run_id }}
-          restore-keys: |
-            contractbot-\${{ hashFiles('.contractbot.yml') }}-
-            contractbot-
-
-      - name: Heal and open PRs (BYOK — only on change)
-        run: npx ${pkg} pr --labels contractbot,automated
-        env:
-          OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-          CONTRACTBOT_API_KEY: \${{ secrets.CONTRACTBOT_API_KEY }}
-          LLM_API_KEY: \${{ secrets.LLM_API_KEY }}
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 `;
 }
 

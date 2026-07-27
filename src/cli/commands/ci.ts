@@ -6,13 +6,11 @@ import { logger } from "../../logger.js";
 import {
   fetchSpec,
   diffSpecs,
-  getCachedSpec,
+  getBaseline,
   cacheSpec,
+  clearChangeSet,
+  saveChangeSet,
 } from "../../differ/index.js";
-import { scanAllLanguages } from "../../scanner/index.js";
-import { createProvider } from "../../providers/index.js";
-import { healCode, scorePatches } from "../../healer/index.js";
-import { savePatch } from "../../output/index.js";
 import { writeGithubAction } from "../../output/github-action.js";
 import { getOpenApiUrl, meetsMinUrgency, ApiUrgency } from "../../config/schema.js";
 import { checkSdkVersion } from "../../watcher/index.js";
@@ -22,7 +20,6 @@ interface CiOptions {
   failOn: string;
   output?: string;
   generateAction?: boolean;
-  autoHeal?: boolean;
   minUrgency?: string;
 }
 
@@ -104,27 +101,23 @@ export async function ciCommand(options: CiOptions): Promise<void> {
         continue;
       }
       const newSpec = fetched.spec;
-      const cachedSpec = await getCachedSpec(api.name);
+      const baseline = await getBaseline(api.name);
 
-      if (!cachedSpec) {
-        await cacheSpec(api.name, newSpec, {
-          etag: fetched.etag,
-          lastModified: fetched.lastModified,
-          url: specUrl,
-        });
-        spinner.info(`${api.name}: First run — baseline cached.`);
+      if (!baseline) {
+        spinner.warn(`${api.name}: No approved baseline — run contractbot baseline --api ${api.name}`);
         reports.push({ api: api.name, status: "baseline", breaking: 0, nonBreaking: 0 });
         continue;
       }
 
-      const diff = diffSpecs(api.name, cachedSpec, newSpec);
+      const diff = diffSpecs(api.name, baseline.spec, newSpec);
+      await cacheSpec(api.name, newSpec, {
+        etag: fetched.etag,
+        lastModified: fetched.lastModified,
+        url: specUrl,
+      });
 
       if (diff.changes.length === 0) {
-        await cacheSpec(api.name, newSpec, {
-          etag: fetched.etag,
-          lastModified: fetched.lastModified,
-          url: specUrl,
-        });
+        await clearChangeSet(api.name);
         spinner.succeed(`${api.name}: Stable`);
         reports.push({ api: api.name, status: "stable", breaking: 0, nonBreaking: 0 });
         continue;
@@ -144,31 +137,19 @@ export async function ciCommand(options: CiOptions): Promise<void> {
         })),
       };
 
-      if (options.autoHeal && diff.breakingCount > 0) {
-        spinner.text = `${api.name}: Healing...`;
-        const apiPaths = Object.keys(newSpec.paths ?? {});
-        const usages = await scanAllLanguages(api.scan_paths, apiPaths, api.languages);
-
-        if (usages.length > 0) {
-          const provider = createProvider({
-            ...config.ai,
-            cache: config.ai.cache,
-            budget_usd: config.ai.budget_usd,
-            max_requests: config.ai.max_requests,
-            requests_per_minute: config.ai.requests_per_minute,
-          });
-          const healResult = await healCode(diff, usages, provider);
-          if (healResult.patches.length > 0) {
-            const scored = scorePatches(healResult.patches, diff.changes);
-            const patchId = await savePatch(healResult);
-            report.patchId = patchId;
-            report.patchCount = healResult.patches.length;
-            report.avgConfidence = Math.round(
-              scored.reduce((s, p) => s + p.score, 0) / scored.length,
-            );
-          }
-        }
-      }
+      await saveChangeSet({
+        apiName: api.name,
+        sourceUrl: specUrl,
+        detectedAt: new Date().toISOString(),
+        baseline,
+        nextSpec: newSpec,
+        nextMeta: {
+          etag: fetched.etag,
+          lastModified: fetched.lastModified,
+          url: specUrl,
+        },
+        diff,
+      });
 
       if (diff.breakingCount > 0) {
         spinner.fail(
@@ -179,11 +160,6 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       }
 
       reports.push(report);
-      await cacheSpec(api.name, newSpec, {
-        etag: fetched.etag,
-        lastModified: fetched.lastModified,
-        url: specUrl,
-      });
     } catch (error) {
       spinner.fail(`${api.name}: ${error instanceof Error ? error.message : "Error"}`);
       reports.push({ api: api.name, status: "error", breaking: 0, nonBreaking: 0 });
@@ -241,9 +217,6 @@ interface CiReport {
   breaking: number;
   nonBreaking: number;
   changes?: Array<{ severity: string; description: string }>;
-  patchId?: string;
-  patchCount?: number;
-  avgConfidence?: number;
 }
 
 function buildMarkdownSummary(
@@ -280,9 +253,6 @@ function buildMarkdownSummary(
         const icon = c.severity === "breaking" ? ":x:" : ":large_blue_circle:";
         lines.push(`- ${icon} ${c.description}`);
       }
-      if (r.patchId) {
-        lines.push(`- :wrench: Patch generated: \`${r.patchId}\` (${r.patchCount} files, ${r.avgConfidence}% confidence)`);
-      }
       lines.push("");
     }
   }
@@ -301,11 +271,9 @@ async function generateGithubAction(): Promise<void> {
   console.log(chalk.green.bold(`✓ Created ${result.path}`));
   console.log();
   console.log(chalk.white("The workflow will:"));
-  console.log(chalk.dim("  • Watch every 15 minutes (cheap HTTP + ETag — no LLM)"));
-  console.log(chalk.dim("  • Open fix PRs only when contracts/SDKs actually changed (BYOK)"));
-  console.log(chalk.dim("  • Humans review & merge — nothing auto-merges to main"));
+  console.log(chalk.dim("  • Check approved API baselines every 15 minutes (no LLM)"));
+  console.log(chalk.dim("  • Upload reports and pending change-sets for review"));
+  console.log(chalk.dim("  • Never modify code or create PRs automatically"));
   console.log();
-  console.log(chalk.white("Required secrets (BYOK — heal job only):"));
-  console.log(chalk.dim("  • CONTRACTBOT_API_KEY (recommended), or OPENAI_API_KEY / ANTHROPIC_API_KEY"));
-  console.log(chalk.dim("  • Or set ai.api_key_env in .contractbot.yml and add that secret"));
+  console.log(chalk.dim("No LLM or GitHub write permissions are required."));
 }

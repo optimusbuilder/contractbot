@@ -9,6 +9,8 @@ import { applyCommand } from "./commands/apply.js";
 import { ciCommand } from "./commands/ci.js";
 import { prCommand } from "./commands/pr.js";
 import { resolveCommand } from "./commands/resolve.js";
+import { baselineCommand } from "./commands/baseline.js";
+import { acceptCommand } from "./commands/accept.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -16,7 +18,7 @@ const program = new Command();
 program
   .name("contractbot")
   .description(
-    "Dependabot for APIs — watch contracts, open BYOK fix PRs.",
+    "CI-native compatibility checks for external APIs.",
   )
   .version("0.1.0")
   .option("--log-level <level>", "Log level: debug, info, warn, error", "info")
@@ -30,6 +32,19 @@ program
       logFile: opts.logFile,
     });
   });
+
+program
+  .command("baseline")
+  .description("Fetch and save approved OpenAPI contract baselines")
+  .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
+  .option("--api <name>", "Baseline a single API")
+  .option("--force", "Replace an existing approved baseline", false)
+  .action(baselineCommand);
+
+program
+  .command("accept <api>")
+  .description("Accept a pending OpenAPI change-set as the new baseline")
+  .action(acceptCommand);
 
 program
   .command("setup")

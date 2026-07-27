@@ -17,10 +17,10 @@ export function createProvider(config: CreateProviderOptions): LlmProvider {
 
   switch (config.provider) {
     case "openai":
-      inner = new OpenAIProvider(config.model, config.base_url);
+      inner = new OpenAIProvider(config.model, config.base_url, config.api_key_env);
       break;
     case "anthropic":
-      inner = new AnthropicProvider(config.model);
+      inner = new AnthropicProvider(config.model, config.api_key_env);
       break;
     case "ollama":
       inner = new OllamaProvider(config.model, config.base_url);
@@ -51,6 +51,7 @@ function getDefaultModel(provider: string): string {
 }
 
 export type { LlmProvider, ProviderConfig } from "./types.js";
+export { resolveApiKey } from "./api-key.js";
 export { TrackedProvider } from "./tracked-provider.js";
 export type { TrackedProviderOptions } from "./tracked-provider.js";
 export { AiCache } from "./cache.js";

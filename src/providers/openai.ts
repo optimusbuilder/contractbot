@@ -1,18 +1,18 @@
 import OpenAI from "openai";
 import { LlmProvider } from "./types.js";
+import { resolveApiKey } from "./api-key.js";
 
 export class OpenAIProvider implements LlmProvider {
   private client: OpenAI;
   private model: string;
 
-  constructor(model?: string, baseUrl?: string) {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "OPENAI_API_KEY environment variable is required for OpenAI provider",
-      );
-    }
-    this.client = new OpenAI({ apiKey, baseURL: baseUrl });
+  constructor(model?: string, baseUrl?: string, apiKeyEnv?: string) {
+    const { key } = resolveApiKey({
+      apiKeyEnv,
+      providerFallbacks: ["OPENAI_API_KEY"],
+      providerLabel: "openai (OpenAI-compatible)",
+    });
+    this.client = new OpenAI({ apiKey: key, baseURL: baseUrl });
     this.model = model ?? "gpt-4o-mini";
   }
 

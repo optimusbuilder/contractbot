@@ -1,18 +1,18 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { LlmProvider } from "./types.js";
+import { resolveApiKey } from "./api-key.js";
 
 export class AnthropicProvider implements LlmProvider {
   private client: Anthropic;
   private model: string;
 
-  constructor(model?: string) {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "ANTHROPIC_API_KEY environment variable is required for Anthropic provider",
-      );
-    }
-    this.client = new Anthropic({ apiKey });
+  constructor(model?: string, apiKeyEnv?: string) {
+    const { key } = resolveApiKey({
+      apiKeyEnv,
+      providerFallbacks: ["ANTHROPIC_API_KEY"],
+      providerLabel: "anthropic",
+    });
+    this.client = new Anthropic({ apiKey: key });
     this.model = model ?? "claude-sonnet-4-20250514";
   }
 

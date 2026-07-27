@@ -407,6 +407,8 @@ jobs:
         env:
           OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
           ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
+          APIHEALER_API_KEY: \${{ secrets.APIHEALER_API_KEY }}
+          LLM_API_KEY: \${{ secrets.LLM_API_KEY }}
           GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
 `;
 
@@ -420,5 +422,6 @@ jobs:
   console.log(chalk.dim("  • Humans review & merge — nothing auto-merges to main"));
   console.log();
   console.log(chalk.white("Required secrets (BYOK — heal job only):"));
-  console.log(chalk.dim("  • OPENAI_API_KEY or ANTHROPIC_API_KEY"));
+  console.log(chalk.dim("  • OPENAI_API_KEY / ANTHROPIC_API_KEY, or APIHEALER_API_KEY / LLM_API_KEY"));
+  console.log(chalk.dim("  • Or set ai.api_key_env in .apihealer.yml (e.g. MOONSHOT_API_KEY) and add that secret"));
 }

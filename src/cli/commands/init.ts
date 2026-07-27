@@ -131,7 +131,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
       console.log(chalk.dim("  1. Review .apihealer.yml — confirm detected APIs"));
       console.log(chalk.dim("  2. Set your AI provider API key (BYOK):"));
     }
-    console.log(chalk.dim("     export OPENAI_API_KEY=sk-..."));
+    console.log(chalk.dim("     export OPENAI_API_KEY=sk-...   # or APIHEALER_API_KEY / ai.api_key_env"));
     console.log(chalk.dim("  3. Run: apihealer ci --generate-action   # schedule watch → heal → PR"));
     console.log(chalk.dim("  4. Or run: apihealer watch / apihealer heal / apihealer pr"));
     console.log();

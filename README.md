@@ -19,7 +19,11 @@ apihealer resolve              # lock contracts (OpenAPI / SDK)
 apihealer ci --generate-action # watch every 15m → PR only on change
 ```
 
-Add secrets: `OPENAI_API_KEY` or `ANTHROPIC_API_KEY` (BYOK) — used **only on the heal job**, not on quiet watches.
+Add secrets (BYOK — heal job only, not quiet watches):
+
+- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, or
+- `APIHEALER_API_KEY` / `LLM_API_KEY` (provider-agnostic), or
+- a custom name via `ai.api_key_env` (e.g. `MOONSHOT_API_KEY` for Kimi)
 
 ### Fast watch, cheap detection
 
@@ -85,6 +89,8 @@ apis:
 ai:
   provider: openai          # openai | anthropic | ollama
   model: gpt-4o-mini
+  # base_url: https://api.moonshot.cn/v1   # OpenAI-compatible (Kimi, GLM, …)
+  # api_key_env: MOONSHOT_API_KEY          # else: APIHEALER_API_KEY → LLM_API_KEY → OPENAI_API_KEY
   budget_usd: 5             # optional spend cap
   cache: true               # cache identical heal prompts
 

@@ -127,6 +127,11 @@ export interface AiConfig {
   provider: "openai" | "anthropic" | "ollama";
   model?: string;
   base_url?: string;
+  /**
+   * Env var name for the API key (e.g. MOONSHOT_API_KEY, ZHIPU_API_KEY).
+   * When unset, tries APIHEALER_API_KEY → LLM_API_KEY → OPENAI_API_KEY / ANTHROPIC_API_KEY.
+   */
+  api_key_env?: string;
   cache?: boolean;
   budget_usd?: number;
   max_requests?: number;

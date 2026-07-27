@@ -109,6 +109,21 @@ ai:
 
     expect(config.ai.base_url).toBe("http://localhost:11434/v1");
   });
+
+  it("preserves api_key_env in ai config", async () => {
+    const yaml = `
+ai:
+  provider: openai
+  model: kimi-k2.5
+  base_url: https://api.moonshot.cn/v1
+  api_key_env: MOONSHOT_API_KEY
+`;
+    await writeFile(CONFIG_PATH, yaml, "utf-8");
+    const config = await loadConfig(CONFIG_PATH);
+
+    expect(config.ai.api_key_env).toBe("MOONSHOT_API_KEY");
+    expect(config.ai.base_url).toBe("https://api.moonshot.cn/v1");
+  });
 });
 
 describe("saveConfig", () => {

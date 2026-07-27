@@ -51,6 +51,11 @@ export interface ApiEntry {
   scan_paths: string[];
   languages?: Array<"typescript" | "python" | "go" | "ruby" | "auto">;
   watch?: WatchConfig;
+  /** Command that verifies this integration against its controlled test environment. */
+  verify?: {
+    command: string;
+    timeout_ms?: number;
+  };
   evidence?: string[];
   needs_resolve?: boolean;
   /**

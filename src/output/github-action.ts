@@ -74,7 +74,7 @@ jobs:
 
       - name: Check API compatibility
         id: check
-        run: npx ${pkg} ci --fail-on none --output api-report.json
+        run: npx ${pkg} ci --fail-on breaking --output api-report.json
 
       - name: Upload report
         if: always()

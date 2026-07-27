@@ -24,6 +24,7 @@ describe("buildGithubActionYaml", () => {
   it("pins npx to a version", () => {
     const yaml = buildGithubActionYaml("0.1.0");
     expect(yaml).toContain("npx contractbot@0.1.0 ci");
+    expect(yaml).toContain("--fail-on breaking");
     expect(yaml).not.toContain("npx contractbot@0.1.0 pr");
     expect(yaml).toContain(".contractbot/changes");
     expect(yaml).toContain("contents: read");

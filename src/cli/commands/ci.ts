@@ -14,6 +14,8 @@ import {
 import { writeGithubAction } from "../../output/github-action.js";
 import { getOpenApiUrl, meetsMinUrgency, ApiUrgency } from "../../config/schema.js";
 import { checkSdkVersion } from "../../watcher/index.js";
+import { runVerification } from "../../verification.js";
+import type { VerificationResult } from "../../verification.js";
 
 interface CiOptions {
   config: string;
@@ -38,6 +40,7 @@ export async function ciCommand(options: CiOptions): Promise<void> {
 
   let totalBreaking = 0;
   let totalNonBreaking = 0;
+  let totalVerificationFailures = 0;
   const reports: CiReport[] = [];
 
   for (const api of config.apis) {
@@ -137,6 +140,17 @@ export async function ciCommand(options: CiOptions): Promise<void> {
         })),
       };
 
+      let verification: VerificationResult | undefined;
+      if (api.verify) {
+        spinner.text = `${api.name}: Running configured integration verification...`;
+        verification = await runVerification(api.verify);
+        report.verification = verification;
+        if (!verification.passed) {
+          totalVerificationFailures++;
+          report.status = "incompatible";
+        }
+      }
+
       await saveChangeSet({
         apiName: api.name,
         sourceUrl: specUrl,
@@ -149,9 +163,12 @@ export async function ciCommand(options: CiOptions): Promise<void> {
           url: specUrl,
         },
         diff,
+        verification,
       });
 
-      if (diff.breakingCount > 0) {
+      if (verification && !verification.passed) {
+        spinner.fail(`${api.name}: integration verification failed`);
+      } else if (diff.breakingCount > 0) {
         spinner.fail(
           `${api.name}: ${diff.breakingCount} breaking, ${diff.nonBreakingCount} non-breaking`,
         );
@@ -178,7 +195,7 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       `breaking_count=${totalBreaking}`,
       `non_breaking_count=${totalNonBreaking}`,
       `has_changes=${hasChanges}`,
-      `status=${totalBreaking > 0 ? "breaking" : totalNonBreaking > 0 ? "changed" : "stable"}`,
+      `status=${totalVerificationFailures > 0 ? "incompatible" : totalBreaking > 0 ? "breaking" : totalNonBreaking > 0 ? "changed" : "stable"}`,
     ];
     await writeFile(
       process.env.GITHUB_OUTPUT,
@@ -196,14 +213,12 @@ export async function ciCommand(options: CiOptions): Promise<void> {
   console.log();
 
   const shouldFail =
-    (options.failOn === "breaking" && totalBreaking > 0) ||
+    (options.failOn === "breaking" && (totalBreaking > 0 || totalVerificationFailures > 0)) ||
     (options.failOn === "any" && (totalBreaking + totalNonBreaking) > 0);
 
   if (shouldFail) {
     console.log(
-      chalk.red.bold(
-        `CI FAILED: ${totalBreaking} breaking, ${totalNonBreaking} non-breaking change(s) detected.`,
-      ),
+      chalk.red.bold(`CI FAILED: ${totalBreaking} breaking, ${totalNonBreaking} non-breaking change(s), ${totalVerificationFailures} verification failure(s).`),
     );
     process.exit(1);
   }
@@ -213,10 +228,11 @@ export async function ciCommand(options: CiOptions): Promise<void> {
 
 interface CiReport {
   api: string;
-  status: "stable" | "baseline" | "breaking" | "changed" | "error";
+  status: "stable" | "baseline" | "breaking" | "changed" | "incompatible" | "error";
   breaking: number;
   nonBreaking: number;
   changes?: Array<{ severity: string; description: string }>;
+  verification?: VerificationResult;
 }
 
 function buildMarkdownSummary(
@@ -240,7 +256,7 @@ function buildMarkdownSummary(
   lines.push("", "| API | Status | Breaking | Non-breaking |", "|-----|--------|----------|--------------|");
 
   for (const r of reports) {
-    const icon = r.status === "breaking" ? ":red_circle:" : r.status === "changed" ? ":yellow_circle:" : ":green_circle:";
+    const icon = r.status === "breaking" || r.status === "incompatible" ? ":red_circle:" : r.status === "changed" ? ":yellow_circle:" : ":green_circle:";
     lines.push(`| ${r.api} | ${icon} ${r.status} | ${r.breaking} | ${r.nonBreaking} |`);
   }
 
@@ -252,6 +268,9 @@ function buildMarkdownSummary(
       for (const c of r.changes!) {
         const icon = c.severity === "breaking" ? ":x:" : ":large_blue_circle:";
         lines.push(`- ${icon} ${c.description}`);
+      }
+      if (r.verification) {
+        lines.push(`- ${r.verification.passed ? ":white_check_mark:" : ":x:"} Verification: \`${r.verification.command}\``);
       }
       lines.push("");
     }

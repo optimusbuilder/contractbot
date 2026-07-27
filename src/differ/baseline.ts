@@ -3,6 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { DiffResult, OpenApiSpec } from "./types.js";
 import { SpecCacheMeta } from "./cache.js";
+import type { VerificationResult } from "../verification.js";
 
 const BASELINE_DIR = ".contractbot/baselines";
 const CHANGESET_DIR = ".contractbot/changes";
@@ -23,6 +24,7 @@ export interface OpenApiChangeSet {
   nextSpec: OpenApiSpec;
   nextMeta?: SpecCacheMeta;
   diff: DiffResult;
+  verification?: VerificationResult;
 }
 
 function baselinePath(apiName: string): string {

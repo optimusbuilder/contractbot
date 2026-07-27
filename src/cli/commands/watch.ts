@@ -26,7 +26,7 @@ export async function watchCommand(options: WatchOptions): Promise<void> {
   const config = await loadConfig(options.config);
 
   if (config.apis.length === 0) {
-    logger.warn("No APIs configured. Edit .apihealer.yml first.");
+    logger.warn("No APIs configured. Edit .contractbot.yml first.");
     return;
   }
 
@@ -45,13 +45,13 @@ export async function watchCommand(options: WatchOptions): Promise<void> {
     }
 
     if (api.needs_resolve || api.contract?.type === "unresolved") {
-      logger.warn(`${api.name}: needs resolve — run apihealer resolve`, {
+      logger.warn(`${api.name}: needs resolve — run contractbot resolve`, {
         api: api.name,
         event: "needs_resolve",
       });
       if (!logger.isJsonMode()) {
         console.log(
-          chalk.yellow(`  ⚠ ${api.name}: unresolved contract — run apihealer resolve`),
+          chalk.yellow(`  ⚠ ${api.name}: unresolved contract — run contractbot resolve`),
         );
       }
       continue;
@@ -121,7 +121,7 @@ export async function watchCommand(options: WatchOptions): Promise<void> {
   if (totalBreaking > 0) {
     console.log(
       chalk.red.bold(
-        `⚠ ${totalBreaking} breaking change(s) detected. Run "apihealer heal" to generate fixes.`,
+        `⚠ ${totalBreaking} breaking change(s) detected. Run "contractbot heal" to generate fixes.`,
       ),
     );
   } else if (totalNonBreaking > 0) {

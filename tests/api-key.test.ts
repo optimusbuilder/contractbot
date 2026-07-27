@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { resolveApiKey } from "../src/providers/api-key.js";
 
 const KEYS = [
-  "APIHEALER_API_KEY",
+  "CONTRACTBOT_API_KEY",
   "LLM_API_KEY",
   "OPENAI_API_KEY",
   "ANTHROPIC_API_KEY",
@@ -29,7 +29,7 @@ describe("resolveApiKey", () => {
   it("uses api_key_env exclusively when set", () => {
     process.env.MOONSHOT_API_KEY = "moon-key";
     process.env.OPENAI_API_KEY = "openai-key";
-    process.env.APIHEALER_API_KEY = "healer-key";
+    process.env.CONTRACTBOT_API_KEY = "healer-key";
 
     const result = resolveApiKey({
       apiKeyEnv: "MOONSHOT_API_KEY",
@@ -52,8 +52,8 @@ describe("resolveApiKey", () => {
     ).toThrow(/MOONSHOT_API_KEY/);
   });
 
-  it("prefers APIHEALER_API_KEY over provider default", () => {
-    process.env.APIHEALER_API_KEY = "healer-key";
+  it("prefers CONTRACTBOT_API_KEY over provider default", () => {
+    process.env.CONTRACTBOT_API_KEY = "healer-key";
     process.env.OPENAI_API_KEY = "openai-key";
 
     const result = resolveApiKey({
@@ -61,7 +61,7 @@ describe("resolveApiKey", () => {
       providerLabel: "openai",
     });
 
-    expect(result).toEqual({ key: "healer-key", envVar: "APIHEALER_API_KEY" });
+    expect(result).toEqual({ key: "healer-key", envVar: "CONTRACTBOT_API_KEY" });
   });
 
   it("falls back to LLM_API_KEY then provider default", () => {
@@ -102,6 +102,6 @@ describe("resolveApiKey", () => {
         providerFallbacks: ["OPENAI_API_KEY"],
         providerLabel: "openai",
       }),
-    ).toThrow(/APIHEALER_API_KEY.*LLM_API_KEY.*OPENAI_API_KEY/);
+    ).toThrow(/CONTRACTBOT_API_KEY.*LLM_API_KEY.*OPENAI_API_KEY/);
   });
 });

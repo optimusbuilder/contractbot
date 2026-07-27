@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { RepoWatchConfig, WatchEvent } from "./types.js";
 
-const REPO_CACHE_DIR = ".apihealer/cache/repos";
+const REPO_CACHE_DIR = ".contractbot/cache/repos";
 
 interface RepoCacheEntry {
   lastCommitSha: string;
@@ -215,7 +215,7 @@ function classifyCommitMessage(message: string): "breaking" | "non-breaking" | "
 function githubHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "apihealer",
+    "User-Agent": "contractbot",
   };
 
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;

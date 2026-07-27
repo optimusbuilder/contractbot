@@ -30,11 +30,11 @@ export async function prCommand(options: PrCommandOptions): Promise<void> {
   const config = await loadConfig(options.config);
 
   if (config.apis.length === 0) {
-    logger.warn("No APIs configured. Edit .apihealer.yml first.");
+    logger.warn("No APIs configured. Edit .contractbot.yml first.");
     return;
   }
 
-  const labels = options.labels?.split(",").map((l) => l.trim()) ?? ["apihealer", "automated"];
+  const labels = options.labels?.split(",").map((l) => l.trim()) ?? ["contractbot", "automated"];
   const reviewers = options.reviewers?.split(",").map((r) => r.trim());
   const assignees = options.assignees?.split(",").map((a) => a.trim());
 
@@ -48,7 +48,7 @@ export async function prCommand(options: PrCommandOptions): Promise<void> {
       }
 
       if (api.needs_resolve || api.contract?.type === "unresolved") {
-        spinner.warn(`${api.name}: unresolved — run apihealer resolve`);
+        spinner.warn(`${api.name}: unresolved — run contractbot resolve`);
         continue;
       }
 

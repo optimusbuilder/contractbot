@@ -1,60 +1,58 @@
-# apihealer
+# contractbot
 
-**Dependabot for APIs** — open-source CLI that discovers the APIs your codebase depends on, watches contracts for breaking changes, and opens PRs with AI-generated fixes. **BYOK** (bring your own OpenAI / Anthropic / Ollama key). Humans review and merge.
+**Dependabot for APIs** — open-source CLI that discovers the APIs your codebase depends on, watches contracts for breaking changes, and opens PRs with AI-generated fixes. **BYOK**. Humans review and merge.
 
 ```
-discover → resolve (once) → watch (mechanical) → heal (BYOK) → PR
+setup once → watch (mechanical) → heal (BYOK) → PR
 ```
 
 ---
 
-## Install and forget
+## Setup (2–3 steps)
 
 ```bash
-npm install -g apihealer   # or npx
-
-cd your-project
-apihealer init                 # discover Stripe, Supabase, unknown hosts, …
-apihealer resolve              # lock contracts (OpenAPI / SDK)
-apihealer ci --generate-action # watch every 15m → PR only on change
+npx contractbot setup
+# add repo secret: CONTRACTBOT_API_KEY   (or: contractbot setup --secret)
+git add .contractbot.yml .github && git commit -m "chore: add contractbot" && git push
 ```
 
-Add secrets (BYOK — heal job only, not quiet watches):
+That’s it. Watching runs every **15 minutes** (HTTP + ETag — no LLM). Fix PRs open **only when something changed**, using your key.
 
-- `OPENAI_API_KEY` / `ANTHROPIC_API_KEY`, or
-- `APIHEALER_API_KEY` / `LLM_API_KEY` (provider-agnostic), or
-- a custom name via `ai.api_key_env` (e.g. `MOONSHOT_API_KEY` for Kimi)
+Fold secret setup into one command if you have [GitHub CLI](https://cli.github.com):
+
+```bash
+npx contractbot setup --secret   # prompts / uses env, runs gh secret set
+git add .contractbot.yml .github && git commit -m "chore: add contractbot" && git push
+```
 
 ### Fast watch, cheap detection
 
-Watching is **not** an LLM call. The generated Action:
-
-1. **Every 15 minutes** — fetch OpenAPI / SDK versions with **ETag / 304** (near-free when unchanged)
-2. **Only if something moved** — `apihealer pr` with your key → open a fix PR
+1. **Every 15 minutes** — fetch OpenAPI / SDK versions with **ETag / 304**
+2. **Only if something moved** — `contractbot pr` with your key → open a fix PR
 
 ```yaml
 apis:
   - name: stripe
     urgency: critical   # payments — keep in the 15m watch
   - name: analytics
-    urgency: low        # skip with: apihealer ci --min-urgency normal
+    urgency: low        # skip with: contractbot ci --min-urgency normal
 ```
 
 Catalog defaults: Stripe, Plaid, Supabase → `critical`; others → `normal`.
 
 ---
 
-## How discovery works (no whitelist gate)
+## How discovery works
 
-`init` scans packages, env vars, and URLs in code. **Unknown APIs stay in config** — they are not dropped because they were missing from a static list.
+`setup` (and `init`) scan packages, env vars, and URLs in code. **Unknown APIs stay in config** — they are not dropped because they were missing from a static list.
 
 | Signal | Example | Result |
 |--------|---------|--------|
 | SDK package | `stripe`, `@supabase/supabase-js` | Catalog enrichment (OpenAPI or SDK watch) |
 | Env vars | `STRIPE_SECRET_KEY` | Same |
-| Host in code | `https://api.acme.dev/...` | Candidate with `needs_resolve: true` |
+| Host in code | `https://api.acme.dev/...` | Candidate; resolved via catalog / well-known paths |
 
-Supabase has no public OpenAPI — it is watched via **`sdk_package`** (`@supabase/supabase-js` version bumps), not a fake spec URL.
+Supabase has no public OpenAPI — it is watched via **`sdk_package`** (`@supabase/supabase-js` version bumps).
 
 ---
 
@@ -79,23 +77,14 @@ apis:
     watch:
       strategies: [sdk_version, changelog]
 
-  - name: acme
-    hosts: ["https://api.acme.dev"]
-    contract:
-      type: unresolved
-    needs_resolve: true
-    scan_paths: ["src/**/*.ts"]
-
 ai:
   provider: openai          # openai | anthropic | ollama
   model: gpt-4o-mini
-  # base_url: https://api.moonshot.cn/v1   # OpenAI-compatible (Kimi, GLM, …)
-  # api_key_env: MOONSHOT_API_KEY          # else: APIHEALER_API_KEY → LLM_API_KEY → OPENAI_API_KEY
-  budget_usd: 5             # optional spend cap
-  cache: true               # cache identical heal prompts
+  budget_usd: 5
+  cache: true
 
 healing:
-  auto_apply: none          # never silent-merge; PRs by default
+  auto_apply: none
   output: pr
 ```
 
@@ -107,17 +96,34 @@ Legacy `spec: <url>` still works and is normalized to `contract.type: openapi` o
 
 | Command | Description |
 |---------|-------------|
-| `apihealer init` | Discover API deps → write `.apihealer.yml` |
-| `apihealer resolve` | Resolve unresolved contracts (catalog → well-known OpenAPI → SDK) |
-| `apihealer resolve --web-search` | One-time bootstrap search for OpenAPI URLs |
-| `apihealer watch` | Poll OpenAPI / SDK versions / changelogs |
-| `apihealer heal` | Diff + scan + BYOK patches |
-| `apihealer pr` | Heal and open GitHub PRs |
-| `apihealer apply <id>` | Apply a saved patch (`--undo` supported) |
-| `apihealer ci` | CI contract check |
-| `apihealer ci --generate-action` | Write scheduled watch → heal → PR workflow |
+| `contractbot setup` | **Start here** — discover + resolve + write config + GitHub Action |
+| `contractbot setup --secret` | Same, plus `gh secret set CONTRACTBOT_API_KEY` |
+| `contractbot watch` | Poll OpenAPI / SDK versions / changelogs |
+| `contractbot heal` | Diff + scan + BYOK patches |
+| `contractbot pr` | Heal and open GitHub PRs |
+| `contractbot apply <id>` | Apply a saved patch (`--undo` supported) |
+| `contractbot ci` | CI contract check |
 
 Global flags: `--json`, `--log-level debug|info|warn|error`, `--log-file <path>`.
+
+### Advanced
+
+| Command | Description |
+|---------|-------------|
+| `contractbot init` | Config only (no Action) |
+| `contractbot resolve` | Re-resolve unresolved contracts |
+| `contractbot resolve --web-search` | One-time bootstrap search for OpenAPI URLs |
+| `contractbot ci --generate-action` | Write workflow without re-running discovery |
+
+**LLM keys:** prefer `CONTRACTBOT_API_KEY`. Also accepts `LLM_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, or `ai.api_key_env` for vendor keys (Kimi, GLM, …) with `ai.base_url`.
+
+```yaml
+ai:
+  provider: openai
+  model: kimi-k2.5
+  base_url: https://api.moonshot.cn/v1
+  api_key_env: MOONSHOT_API_KEY
+```
 
 ---
 
@@ -147,7 +153,7 @@ SDK contracts surface **version bumps** (major = breaking signal). Pair with rel
 npm install
 npm test
 npm run build
-npm run dev -- init
+npm run dev -- setup
 ```
 
 ## License

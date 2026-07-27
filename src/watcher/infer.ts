@@ -4,7 +4,7 @@ import { join } from "path";
 import { InferredSchema, InferredEndpoint, WatchEvent } from "./types.js";
 import { inferSchema } from "./probe.js";
 
-const INFER_CACHE_DIR = ".apihealer/cache/inferred";
+const INFER_CACHE_DIR = ".contractbot/cache/inferred";
 
 interface InferredSpecCache {
   apiName: string;

@@ -18,7 +18,7 @@ export async function scanForApiUsages(
   for (const pattern of scanPaths) {
     const matched = await glob(pattern, {
       nodir: true,
-      ignore: ["**/node_modules/**", "**/dist/**", "**/.apihealer/**"],
+      ignore: ["**/node_modules/**", "**/dist/**", "**/.contractbot/**"],
     });
     files.push(...matched);
   }

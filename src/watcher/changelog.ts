@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { ChangelogSource, WatchEvent } from "./types.js";
 
-const CHANGELOG_CACHE_DIR = ".apihealer/cache/changelogs";
+const CHANGELOG_CACHE_DIR = ".contractbot/cache/changelogs";
 
 interface ChangelogEntry {
   id: string;
@@ -90,7 +90,7 @@ async function fetchGitHubReleases(
   const apiUrl = `https://api.github.com/repos/${repo}/releases?per_page=10`;
   const headers: Record<string, string> = {
     "Accept": "application/vnd.github.v3+json",
-    "User-Agent": "apihealer",
+    "User-Agent": "contractbot",
   };
 
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;

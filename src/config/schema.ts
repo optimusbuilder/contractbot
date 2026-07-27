@@ -129,7 +129,7 @@ export interface AiConfig {
   base_url?: string;
   /**
    * Env var name for the API key (e.g. MOONSHOT_API_KEY, ZHIPU_API_KEY).
-   * When unset, tries APIHEALER_API_KEY → LLM_API_KEY → OPENAI_API_KEY / ANTHROPIC_API_KEY.
+   * When unset, tries CONTRACTBOT_API_KEY → LLM_API_KEY → OPENAI_API_KEY / ANTHROPIC_API_KEY.
    */
   api_key_env?: string;
   cache?: boolean;
@@ -143,13 +143,13 @@ export interface HealingConfig {
   output: "patch" | "pr" | "stdout";
 }
 
-export interface ApihealerConfig {
+export interface ContractbotConfig {
   apis: ApiEntry[];
   ai: AiConfig;
   healing: HealingConfig;
 }
 
-export const DEFAULT_CONFIG: ApihealerConfig = {
+export const DEFAULT_CONFIG: ContractbotConfig = {
   apis: [],
   ai: {
     provider: "openai",

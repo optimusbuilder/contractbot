@@ -3,7 +3,7 @@ import { mkdir, readFile, writeFile, readdir, stat, rm } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 
-const CACHE_DIR = ".apihealer/ai-cache";
+const CACHE_DIR = ".contractbot/ai-cache";
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const DEFAULT_MAX_ENTRIES = 200;
 

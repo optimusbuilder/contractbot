@@ -4,7 +4,7 @@ import { rm } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 
-const CACHE = join(process.cwd(), ".apihealer/cache/sdk");
+const CACHE = join(process.cwd(), ".contractbot/cache/sdk");
 
 beforeEach(async () => {
   if (existsSync(CACHE)) await rm(CACHE, { recursive: true });

@@ -2,7 +2,7 @@
  * Resolve an LLM API key from the environment.
  *
  * When `apiKeyEnv` is set (from `ai.api_key_env`), only that variable is used.
- * Otherwise try, in order: APIHEALER_API_KEY → LLM_API_KEY → provider defaults
+ * Otherwise try, in order: CONTRACTBOT_API_KEY → LLM_API_KEY → provider defaults
  * (e.g. OPENAI_API_KEY / ANTHROPIC_API_KEY).
  */
 export function resolveApiKey(options: {
@@ -22,7 +22,7 @@ export function resolveApiKey(options: {
   }
 
   const candidates = unique([
-    "APIHEALER_API_KEY",
+    "CONTRACTBOT_API_KEY",
     "LLM_API_KEY",
     ...options.providerFallbacks,
   ]);
@@ -34,7 +34,7 @@ export function resolveApiKey(options: {
 
   throw new Error(
     `No API key found for ${options.providerLabel}. Set one of: ${candidates.join(", ")} ` +
-      `(or ai.api_key_env in .apihealer.yml for a custom variable name)`,
+      `(or ai.api_key_env in .contractbot.yml for a custom variable name)`,
   );
 }
 

@@ -84,7 +84,7 @@ export async function resolveCommand(options: ResolveCommandOptions): Promise<vo
     );
     if (resolvedCount < targets.length && !options.webSearch) {
       console.log(
-        chalk.dim("  Tip: apihealer resolve --web-search  to bootstrap unknown hosts"),
+        chalk.dim("  Tip: contractbot resolve --web-search  to bootstrap unknown hosts"),
       );
     }
   }

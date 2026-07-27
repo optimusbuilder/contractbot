@@ -19,8 +19,8 @@ interface PatchMetadata {
   scores?: Array<{ path: string; confidence: string; score: number }>;
 }
 
-const HISTORY_PATH = ".apihealer/history.json";
-const BACKUP_DIR = ".apihealer/backups";
+const HISTORY_PATH = ".contractbot/history.json";
+const BACKUP_DIR = ".contractbot/backups";
 
 interface HistoryEntry {
   patchId: string;
@@ -37,12 +37,12 @@ export async function applyCommand(
     return;
   }
 
-  const patchDir = join(".apihealer/patches", patchId);
+  const patchDir = join(".contractbot/patches", patchId);
 
   if (!existsSync(patchDir)) {
     logger.error(`Patch not found: ${patchId}`, { patchId, event: "patch_not_found" });
     if (!logger.isJsonMode()) {
-      console.log(chalk.dim("Run \"apihealer heal\" first to generate patches."));
+      console.log(chalk.dim("Run \"contractbot heal\" first to generate patches."));
     }
     return;
   }
@@ -142,7 +142,7 @@ export async function applyCommand(
     if (applied > 0) {
       console.log(chalk.green.bold(`✓ ${applied} file(s) updated.`));
       console.log(chalk.dim(`  Backup saved: ${backupPath}`));
-      console.log(chalk.dim(`  Undo with: apihealer apply --undo ${backupId}`));
+      console.log(chalk.dim(`  Undo with: contractbot apply --undo ${backupId}`));
       console.log(chalk.dim("  Review changes: git diff"));
     } else {
       console.log(chalk.yellow("No files were updated."));
@@ -229,6 +229,6 @@ async function recordHistory(entry: HistoryEntry): Promise<void> {
     history = JSON.parse(raw) as HistoryEntry[];
   }
   history.push(entry);
-  await mkdir(".apihealer", { recursive: true });
+  await mkdir(".contractbot", { recursive: true });
   await writeFile(HISTORY_PATH, JSON.stringify(history, null, 2), "utf-8");
 }

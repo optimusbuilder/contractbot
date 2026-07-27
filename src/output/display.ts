@@ -77,11 +77,11 @@ export function displayHealResult(
     console.log();
     console.log(
       chalk.white(`  Patch saved: `) +
-        chalk.bold(`.apihealer/patches/${patchId}/`),
+        chalk.bold(`.contractbot/patches/${patchId}/`),
     );
     console.log();
     console.log(
-      chalk.dim(`  Apply with: `) + chalk.white(`apihealer apply ${patchId}`),
+      chalk.dim(`  Apply with: `) + chalk.white(`contractbot apply ${patchId}`),
     );
   }
 }

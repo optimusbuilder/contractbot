@@ -1,18 +1,19 @@
 {
-  "name": "apihealer",
+  "name": "contractbot",
   "version": "0.1.0",
-  "description": "Self-healing API client — monitors APIs you depend on, detects contract changes, and generates code fixes for your codebase using AI.",
+  "description": "Dependabot for APIs — discover API deps, watch contracts, open BYOK fix PRs.",
   "type": "module",
   "bin": {
-    "apihealer": "./dist/cli/index.js"
+    "contractbot": "dist/cli/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && chmod +x dist/cli/index.js",
     "dev": "tsx src/cli/index.ts",
     "start": "node dist/cli/index.js",
     "lint": "eslint src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "api",
@@ -27,11 +28,15 @@
     "developer-tools"
   ],
   "license": "MIT",
-  "author": "",
+  "author": "optimusbuilder",
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/optimusbuilder/contractbot.git"
   },
+  "bugs": {
+    "url": "https://github.com/optimusbuilder/contractbot/issues"
+  },
+  "homepage": "https://github.com/optimusbuilder/contractbot#readme",
   "engines": {
     "node": ">=18"
   },

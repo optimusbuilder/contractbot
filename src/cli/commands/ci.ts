@@ -1,7 +1,6 @@
 import ora from "ora";
 import chalk from "chalk";
-import { writeFile, mkdir } from "fs/promises";
-import { existsSync } from "fs";
+import { writeFile } from "fs/promises";
 import { loadConfig } from "../../config/loader.js";
 import { logger } from "../../logger.js";
 import {
@@ -14,6 +13,7 @@ import { scanAllLanguages } from "../../scanner/index.js";
 import { createProvider } from "../../providers/index.js";
 import { healCode, scorePatches } from "../../healer/index.js";
 import { savePatch } from "../../output/index.js";
+import { writeGithubAction } from "../../output/github-action.js";
 import { getOpenApiUrl, meetsMinUrgency, ApiUrgency } from "../../config/schema.js";
 import { checkSdkVersion } from "../../watcher/index.js";
 
@@ -53,7 +53,7 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       }
 
       if (api.needs_resolve || api.contract?.type === "unresolved") {
-        spinner.warn(`${api.name}: unresolved — run apihealer resolve`);
+        spinner.warn(`${api.name}: unresolved — run contractbot resolve`);
         reports.push({ api: api.name, status: "error", breaking: 0, nonBreaking: 0 });
         continue;
       }
@@ -252,7 +252,7 @@ function buildMarkdownSummary(
   totalNonBreaking: number,
 ): string {
   const lines: string[] = [
-    "## apihealer - API Contract Check",
+    "## contractbot - API Contract Check",
     "",
   ];
 
@@ -291,130 +291,14 @@ function buildMarkdownSummary(
 }
 
 async function generateGithubAction(): Promise<void> {
-  const workflowDir = ".github/workflows";
-  const workflowPath = `${workflowDir}/apihealer.yml`;
+  const result = await writeGithubAction();
 
-  if (existsSync(workflowPath)) {
-    console.log(chalk.yellow(`Workflow already exists: ${workflowPath}`));
+  if (result.skipped) {
+    console.log(chalk.yellow(`Workflow already exists: ${result.path}`));
     return;
   }
 
-  await mkdir(workflowDir, { recursive: true });
-
-  const workflow = `name: apihealer — fast watch, heal only on change
-
-# Detection is cheap (HTTP + ETag). BYOK LLM / PRs run only when something moved.
-on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
-  workflow_dispatch:
-  pull_request:
-    branches: [main, master]
-
-permissions:
-  contents: write
-  pull-requests: write
-
-jobs:
-  watch:
-    runs-on: ubuntu-latest
-    outputs:
-      has_changes: \${{ steps.check.outputs.has_changes }}
-      status: \${{ steps.check.outputs.status }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Restore apihealer cache (specs + ETags)
-        uses: actions/cache@v4
-        with:
-          path: .apihealer/cache
-          key: apihealer-\${{ hashFiles('.apihealer.yml') }}-\${{ github.run_id }}
-          restore-keys: |
-            apihealer-\${{ hashFiles('.apihealer.yml') }}-
-            apihealer-
-
-      - name: Watch API contracts (no LLM)
-        id: check
-        run: npx apihealer ci --fail-on none --output api-report.json
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-contract-report
-          path: api-report.json
-
-      - name: Comment on PR when breaking
-        if: github.event_name == 'pull_request' && steps.check.outputs.status == 'breaking'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            if (!fs.existsSync('api-report.json')) return;
-            const report = JSON.parse(fs.readFileSync('api-report.json', 'utf8'));
-            const breaking = report.filter(r => r.status === 'breaking');
-            if (breaking.length === 0) return;
-            let body = '## :warning: Upstream API breaking changes\\n\\n';
-            body += 'Detected by cheap contract watch (no LLM). A fix PR may follow from the scheduled heal job.\\n\\n';
-            for (const r of breaking) {
-              body += '### ' + r.api + '\\n';
-              for (const c of r.changes || []) {
-                body += '- ' + c.description + '\\n';
-              }
-              body += '\\n';
-            }
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body
-            });
-
-  heal:
-    needs: watch
-    if: |
-      needs.watch.outputs.has_changes == 'true' &&
-      github.event_name != 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
-
-      - name: Restore apihealer cache
-        uses: actions/cache@v4
-        with:
-          path: .apihealer/cache
-          key: apihealer-\${{ hashFiles('.apihealer.yml') }}-\${{ github.run_id }}
-          restore-keys: |
-            apihealer-\${{ hashFiles('.apihealer.yml') }}-
-            apihealer-
-
-      - name: Heal and open PRs (BYOK — only on change)
-        run: npx apihealer pr --labels apihealer,automated
-        env:
-          OPENAI_API_KEY: \${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: \${{ secrets.ANTHROPIC_API_KEY }}
-          APIHEALER_API_KEY: \${{ secrets.APIHEALER_API_KEY }}
-          LLM_API_KEY: \${{ secrets.LLM_API_KEY }}
-          GH_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-`;
-
-  await writeFile(workflowPath, workflow, "utf-8");
-
-  console.log(chalk.green.bold(`✓ Created ${workflowPath}`));
+  console.log(chalk.green.bold(`✓ Created ${result.path}`));
   console.log();
   console.log(chalk.white("The workflow will:"));
   console.log(chalk.dim("  • Watch every 15 minutes (cheap HTTP + ETag — no LLM)"));
@@ -422,6 +306,6 @@ jobs:
   console.log(chalk.dim("  • Humans review & merge — nothing auto-merges to main"));
   console.log();
   console.log(chalk.white("Required secrets (BYOK — heal job only):"));
-  console.log(chalk.dim("  • OPENAI_API_KEY / ANTHROPIC_API_KEY, or APIHEALER_API_KEY / LLM_API_KEY"));
-  console.log(chalk.dim("  • Or set ai.api_key_env in .apihealer.yml (e.g. MOONSHOT_API_KEY) and add that secret"));
+  console.log(chalk.dim("  • CONTRACTBOT_API_KEY (recommended), or OPENAI_API_KEY / ANTHROPIC_API_KEY"));
+  console.log(chalk.dim("  • Or set ai.api_key_env in .contractbot.yml and add that secret"));
 }

@@ -3,7 +3,7 @@ import { join } from "path";
 import { createTwoFilesPatch } from "diff";
 import { FilePatch, HealResult } from "../healer/index.js";
 
-const PATCHES_DIR = ".apihealer/patches";
+const PATCHES_DIR = ".contractbot/patches";
 
 export async function savePatch(result: HealResult): Promise<string> {
   await mkdir(PATCHES_DIR, { recursive: true });

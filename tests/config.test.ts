@@ -6,7 +6,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 
 const TEST_DIR = join(process.cwd(), ".test-config-tmp");
-const CONFIG_PATH = join(TEST_DIR, ".apihealer.yml");
+const CONFIG_PATH = join(TEST_DIR, ".contractbot.yml");
 
 beforeEach(async () => {
   await mkdir(TEST_DIR, { recursive: true });
@@ -20,14 +20,14 @@ afterEach(async () => {
 
 describe("loadConfig", () => {
   it("throws when config file does not exist", async () => {
-    await expect(loadConfig("/nonexistent/.apihealer.yml")).rejects.toThrow(
+    await expect(loadConfig("/nonexistent/.contractbot.yml")).rejects.toThrow(
       "Config file not found",
     );
   });
 
-  it("suggests running init in error message", async () => {
-    await expect(loadConfig("/nonexistent/.apihealer.yml")).rejects.toThrow(
-      "apihealer init",
+  it("suggests running setup in error message", async () => {
+    await expect(loadConfig("/nonexistent/.contractbot.yml")).rejects.toThrow(
+      "contractbot setup",
     );
   });
 

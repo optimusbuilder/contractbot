@@ -116,7 +116,7 @@ export async function resolveApiContract(
       type: "unresolved",
       reason: options.webSearch
         ? "Could not find OpenAPI, SDK, or search result"
-        : "Could not find OpenAPI or SDK — try: apihealer resolve --web-search",
+        : "Could not find OpenAPI or SDK — try: contractbot resolve --web-search",
     },
     needs_resolve: true,
   };
@@ -218,7 +218,7 @@ export async function resolveFromWebSearch(api: ApiEntry): Promise<ApiEntry | nu
     const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
     const res = await fetch(searchUrl, {
       headers: {
-        "User-Agent": "apihealer/0.1 (bootstrap contract resolver)",
+        "User-Agent": "contractbot/0.1 (bootstrap contract resolver)",
       },
     });
     if (!res.ok) return null;

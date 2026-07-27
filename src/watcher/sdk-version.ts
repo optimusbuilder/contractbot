@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { WatchEvent } from "./types.js";
 
-const SDK_CACHE_DIR = ".apihealer/cache/sdk";
+const SDK_CACHE_DIR = ".contractbot/cache/sdk";
 
 export interface SdkWatchConfig {
   ecosystem: "npm" | "pypi" | "go" | "rubygems";

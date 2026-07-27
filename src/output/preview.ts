@@ -93,9 +93,9 @@ function displaySummaryTable(patches: ScoredPatch[]): void {
     `${chalk.red("●")} Low: ${low}`,
   );
   console.log();
-  console.log(chalk.dim("  Apply all:           apihealer apply <patch-id>"));
-  console.log(chalk.dim("  Apply high-conf only: apihealer apply <patch-id> --min-confidence high"));
-  console.log(chalk.dim("  Interactive:          apihealer apply <patch-id> --interactive"));
+  console.log(chalk.dim("  Apply all:           contractbot apply <patch-id>"));
+  console.log(chalk.dim("  Apply high-conf only: contractbot apply <patch-id> --min-confidence high"));
+  console.log(chalk.dim("  Interactive:          contractbot apply <patch-id> --interactive"));
 }
 
 function confidenceBadge(level: string, score: number): string {

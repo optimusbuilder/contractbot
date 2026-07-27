@@ -122,7 +122,7 @@ export async function detectApis(projectDir: string): Promise<DetectionResult> {
 export function candidateToApiEntry(candidate: ApiCandidate): ApiEntry {
   const contract = candidate.suggestedContract ?? {
     type: "unresolved" as const,
-    reason: "No OpenAPI or SDK contract found — run apihealer resolve",
+    reason: "No OpenAPI or SDK contract found — run contractbot resolve",
   };
 
   const strategies =

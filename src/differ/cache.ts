@@ -3,7 +3,7 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { OpenApiSpec } from "./types.js";
 
-const CACHE_DIR = ".apihealer/cache";
+const CACHE_DIR = ".contractbot/cache";
 
 export interface SpecCacheMeta {
   etag?: string;

@@ -26,7 +26,7 @@ export async function healCommand(options: HealOptions): Promise<void> {
   const config = await loadConfig(options.config);
 
   if (config.apis.length === 0) {
-    logger.warn("No APIs configured. Edit .apihealer.yml first.");
+    logger.warn("No APIs configured. Edit .contractbot.yml first.");
     return;
   }
 
@@ -54,7 +54,7 @@ export async function healCommand(options: HealOptions): Promise<void> {
       }
 
       if (api.needs_resolve || api.contract?.type === "unresolved") {
-        spinner?.warn(`${api.name}: unresolved — run apihealer resolve`);
+        spinner?.warn(`${api.name}: unresolved — run contractbot resolve`);
         logger.warn("Skipping unresolved API", { api: api.name, event: "needs_resolve" });
         continue;
       }

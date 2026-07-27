@@ -3,29 +3,34 @@ import { resolve } from "path";
 import chalk from "chalk";
 import ora from "ora";
 import { saveConfig } from "../../config/loader.js";
-import { DEFAULT_CONFIG, ApihealerConfig } from "../../config/schema.js";
+import { DEFAULT_CONFIG, ContractbotConfig } from "../../config/schema.js";
 import {
   detectApis,
   candidateToApiEntry,
   ApiCandidate,
 } from "../../detector/index.js";
+import { writeGithubAction } from "../../output/github-action.js";
 import { logger } from "../../logger.js";
 
 interface InitOptions {
   dir: string;
   skipDetect?: boolean;
-  resolve?: boolean;
   generateAction?: boolean;
 }
 
+/**
+ * Power-user: write `.contractbot.yml` only.
+ * Prefer `contractbot setup` for the full 2–3 step onboarding.
+ */
 export async function initCommand(options: InitOptions): Promise<void> {
   const projectDir = resolve(options.dir);
-  const configPath = `${projectDir}/.apihealer.yml`;
+  const configPath = `${projectDir}/.contractbot.yml`;
 
   if (existsSync(configPath)) {
     logger.warn(`Config already exists: ${configPath}`);
     if (!logger.isJsonMode()) {
       console.log(chalk.dim("Delete it first if you want to reinitialize."));
+      console.log(chalk.dim("Or run: contractbot setup  (resolve + Action if needed)"));
     }
     return;
   }
@@ -49,7 +54,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
         names: candidates.map((c) => c.name),
       });
     } catch {
-      spinner?.warn("Auto-detection failed, using default config");
+      spinner?.warn("Auto-detection failed");
       logger.warn("Auto-detection failed");
     }
   }
@@ -78,23 +83,9 @@ export async function initCommand(options: InitOptions): Promise<void> {
   }
 
   const apis =
-    candidates.length > 0
-      ? candidates.map(candidateToApiEntry)
-      : [
-          {
-            name: "example-api",
-            spec: "https://petstore3.swagger.io/api/v3/openapi.json",
-            contract: {
-              type: "openapi" as const,
-              url: "https://petstore3.swagger.io/api/v3/openapi.json",
-              resolved_via: "manual" as const,
-            },
-            scan_paths: ["src/**/*.ts", "src/**/*.js"],
-            needs_resolve: false,
-          },
-        ];
+    candidates.length > 0 ? candidates.map(candidateToApiEntry) : [];
 
-  const config: ApihealerConfig = {
+  const config: ContractbotConfig = {
     ...DEFAULT_CONFIG,
     apis,
   };
@@ -103,7 +94,7 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
   const unresolved = apis.filter((a) => a.needs_resolve).length;
 
-  logger.info("Created .apihealer.yml", {
+  logger.info("Created .contractbot.yml", {
     event: "init_complete",
     apis: apis.length,
     unresolved,
@@ -111,39 +102,47 @@ export async function initCommand(options: InitOptions): Promise<void> {
 
   if (!logger.isJsonMode()) {
     console.log();
-    console.log(chalk.green.bold("✓ Created .apihealer.yml"));
-    if (candidates.length > 0) {
+    if (apis.length === 0) {
+      console.log(chalk.yellow("✓ Created .contractbot.yml (no APIs detected)"));
+      console.log(
+        chalk.dim(
+          "  Add APIs manually, or re-run after installing SDKs (stripe, @supabase/supabase-js, …)",
+        ),
+      );
+    } else {
+      console.log(chalk.green.bold("✓ Created .contractbot.yml"));
       console.log(
         chalk.dim(
           `  ${apis.length} API(s) written` +
             (unresolved > 0
-              ? ` (${unresolved} need resolve — run apihealer resolve)`
+              ? ` (${unresolved} need resolve)`
               : ""),
         ),
       );
     }
     console.log();
-    console.log(chalk.white("Next steps:"));
+    console.log(chalk.white("Tip: prefer one-shot setup:"));
+    console.log(chalk.dim("  contractbot setup          # discover + resolve + GitHub Action"));
+    console.log(chalk.dim("  contractbot setup --secret # also set CONTRACTBOT_API_KEY via gh"));
+    console.log();
+    console.log(chalk.white("Or continue manually:"));
     if (unresolved > 0) {
-      console.log(chalk.dim("  1. Run: apihealer resolve   # find contracts for unknown APIs"));
-      console.log(chalk.dim("  2. Set your AI provider API key (BYOK):"));
-    } else {
-      console.log(chalk.dim("  1. Review .apihealer.yml — confirm detected APIs"));
-      console.log(chalk.dim("  2. Set your AI provider API key (BYOK):"));
+      console.log(chalk.dim("  1. contractbot resolve"));
     }
-    console.log(chalk.dim("     export OPENAI_API_KEY=sk-...   # or APIHEALER_API_KEY / ai.api_key_env"));
-    console.log(chalk.dim("  3. Run: apihealer ci --generate-action   # schedule watch → heal → PR"));
-    console.log(chalk.dim("  4. Or run: apihealer watch / apihealer heal / apihealer pr"));
+    console.log(chalk.dim("  • contractbot ci --generate-action"));
+    console.log(chalk.dim("  • Add secret CONTRACTBOT_API_KEY, then commit & push"));
     console.log();
   }
 
   if (options.generateAction) {
-    const { ciCommand } = await import("./ci.js");
-    await ciCommand({
-      config: configPath,
-      failOn: "breaking",
-      generateAction: true,
-    });
+    const result = await writeGithubAction({ dir: projectDir });
+    if (!logger.isJsonMode()) {
+      if (result.skipped) {
+        console.log(chalk.yellow(`Workflow already exists: ${result.path}`));
+      } else {
+        console.log(chalk.green.bold(`✓ Created ${result.path}`));
+      }
+    }
   }
 }
 

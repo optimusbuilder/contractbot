@@ -223,7 +223,11 @@ export async function ciCommand(options: CiOptions): Promise<void> {
     process.exit(1);
   }
 
-  console.log(chalk.green.bold("CI PASSED: No actionable API changes."));
+  if (totalBreaking > 0 || totalNonBreaking > 0 || totalVerificationFailures > 0) {
+    console.log(chalk.yellow.bold("CI CHECK COMPLETE: Pending API changes require review."));
+  } else {
+    console.log(chalk.green.bold("CI PASSED: No actionable API changes."));
+  }
 }
 
 interface CiReport {

@@ -1,0 +1,59 @@
+{
+  "name": "apihealer",
+  "version": "0.1.0",
+  "description": "Self-healing API client — monitors APIs you depend on, detects contract changes, and generates code fixes for your codebase using AI.",
+  "type": "module",
+  "bin": {
+    "apihealer": "./dist/cli/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "lint": "eslint src/",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "api",
+    "self-healing",
+    "openapi",
+    "swagger",
+    "breaking-changes",
+    "contract",
+    "ai",
+    "byok",
+    "cli",
+    "developer-tools"
+  ],
+  "license": "MIT",
+  "author": "",
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "commander": "^13.1.0",
+    "yaml": "^2.7.1",
+    "chalk": "^5.4.1",
+    "ora": "^8.2.0",
+    "ts-morph": "^25.0.0",
+    "openai": "^4.86.0",
+    "@anthropic-ai/sdk": "^0.39.0",
+    "glob": "^11.0.1",
+    "diff": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.3",
+    "tsx": "^4.19.4",
+    "vitest": "^3.2.1",
+    "@types/node": "^22.15.0",
+    "@types/diff": "^7.0.2"
+  }
+}

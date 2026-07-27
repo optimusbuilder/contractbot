@@ -1,7 +1,11 @@
 import { readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import { parse, stringify } from "yaml";
-import { ApihealerConfig, DEFAULT_CONFIG } from "./schema.js";
+import {
+  ApihealerConfig,
+  DEFAULT_CONFIG,
+  normalizeApiEntry,
+} from "./schema.js";
 
 export async function loadConfig(path: string): Promise<ApihealerConfig> {
   if (!existsSync(path)) {
@@ -13,8 +17,10 @@ export async function loadConfig(path: string): Promise<ApihealerConfig> {
   const raw = await readFile(path, "utf-8");
   const parsed = parse(raw) as Partial<ApihealerConfig>;
 
+  const apis = (parsed.apis ?? DEFAULT_CONFIG.apis).map(normalizeApiEntry);
+
   return {
-    apis: parsed.apis ?? DEFAULT_CONFIG.apis,
+    apis,
     ai: { ...DEFAULT_CONFIG.ai, ...parsed.ai },
     healing: { ...DEFAULT_CONFIG.healing, ...parsed.healing },
   };

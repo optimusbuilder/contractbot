@@ -1,15 +1,6 @@
 import { Project, SyntaxKind, Node } from "ts-morph";
 import { glob } from "glob";
-
-export interface ApiUsage {
-  filePath: string;
-  line: number;
-  column: number;
-  snippet: string;
-  context: string;
-  endpointHint?: string;
-  methodHint?: string;
-}
+import { ApiUsage } from "./types.js";
 
 /**
  * Scans TypeScript/JavaScript files for HTTP API call patterns:

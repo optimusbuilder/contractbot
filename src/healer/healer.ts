@@ -17,6 +17,17 @@ export interface FilePatch {
   description: string;
 }
 
+export class HealError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "NO_JSON_RESPONSE" | "INVALID_JSON" | "PROVIDER_ERROR" | "NO_VALID_PATCHES",
+    public readonly rawResponse?: string,
+  ) {
+    super(message);
+    this.name = "HealError";
+  }
+}
+
 const SYSTEM_PROMPT = `You are an expert API migration assistant. Your job is to update user code when an API they depend on changes.
 
 You will receive:
@@ -60,11 +71,20 @@ export async function healCode(
   const fileContents = await loadAffectedFiles(usages);
 
   const prompt = buildPrompt(diffResult, usages, fileContents);
-  const response = await provider.generate(prompt, SYSTEM_PROMPT);
 
-  const patches = parseResponse(response, fileContents);
+  let response: string;
+  try {
+    response = await provider.generate(prompt, SYSTEM_PROMPT);
+  } catch (err) {
+    throw new HealError(
+      `AI provider failed: ${err instanceof Error ? err.message : String(err)}`,
+      "PROVIDER_ERROR",
+    );
+  }
 
-  const summary = buildSummary(diffResult, patches);
+  const { patches, warnings } = parseResponse(response, fileContents);
+
+  const summary = buildSummary(diffResult, patches, warnings);
 
   return {
     apiName: diffResult.apiName,
@@ -142,29 +162,49 @@ interface LlmFilePatch {
   replacements: LlmReplacement[];
 }
 
+interface ParseResult {
+  patches: FilePatch[];
+  warnings: string[];
+}
+
 function parseResponse(
   response: string,
   fileContents: Map<string, string>,
-): FilePatch[] {
+): ParseResult {
+  const warnings: string[] = [];
+
   const jsonMatch = response.match(/\[[\s\S]*\]/);
-  if (!jsonMatch) return [];
+  if (!jsonMatch) {
+    warnings.push("AI response did not contain a JSON array. The model may have returned an explanation instead of patches.");
+    return { patches: [], warnings };
+  }
 
   let parsed: LlmFilePatch[];
   try {
     parsed = JSON.parse(jsonMatch[0]) as LlmFilePatch[];
-  } catch {
-    return [];
+  } catch (err) {
+    warnings.push(`AI response contained malformed JSON: ${err instanceof Error ? err.message : String(err)}`);
+    return { patches: [], warnings };
   }
 
-  if (!Array.isArray(parsed)) return [];
+  if (!Array.isArray(parsed)) {
+    warnings.push("AI response JSON was not an array as expected.");
+    return { patches: [], warnings };
+  }
 
   const patches: FilePatch[] = [];
 
   for (const entry of parsed) {
     const originalContent = fileContents.get(entry.filePath);
-    if (!originalContent) continue;
+    if (!originalContent) {
+      warnings.push(`AI suggested patch for unknown file: ${entry.filePath}`);
+      continue;
+    }
 
     let patchedContent = originalContent;
+    let appliedCount = 0;
+    let skippedCount = 0;
+
     for (const replacement of entry.replacements ?? []) {
       if (
         replacement.search &&
@@ -175,7 +215,14 @@ function parseResponse(
           replacement.search,
           replacement.replace,
         );
+        appliedCount++;
+      } else if (replacement.search && !patchedContent.includes(replacement.search)) {
+        skippedCount++;
       }
+    }
+
+    if (skippedCount > 0) {
+      warnings.push(`${entry.filePath}: ${skippedCount} replacement(s) skipped — search string not found in file`);
     }
 
     if (patchedContent !== originalContent) {
@@ -188,10 +235,14 @@ function parseResponse(
     }
   }
 
-  return patches;
+  if (patches.length === 0 && parsed.length > 0) {
+    warnings.push("AI generated patches but none could be applied — search strings may not match the current file contents.");
+  }
+
+  return { patches, warnings };
 }
 
-function buildSummary(diffResult: DiffResult, patches: FilePatch[]): string {
+function buildSummary(diffResult: DiffResult, patches: FilePatch[], warnings: string[] = []): string {
   const lines: string[] = [
     `API: ${diffResult.apiName}`,
     `Breaking changes: ${diffResult.breakingCount}`,
@@ -202,6 +253,13 @@ function buildSummary(diffResult: DiffResult, patches: FilePatch[]): string {
 
   for (const patch of patches) {
     lines.push(`  ${patch.filePath}: ${patch.description}`);
+  }
+
+  if (warnings.length > 0) {
+    lines.push("", "Warnings:");
+    for (const w of warnings) {
+      lines.push(`  ⚠ ${w}`);
+    }
   }
 
   return lines.join("\n");

@@ -10,6 +10,7 @@ import { baselineCommand } from "./commands/baseline.js";
 import { acceptCommand } from "./commands/accept.js";
 import { suggestCommand } from "./commands/suggest.js";
 import { showCommand } from "./commands/show.js";
+import { ignoreCommand } from "./commands/ignore.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -83,6 +84,12 @@ program
       failOn: "none",
     }),
   );
+
+program
+  .command("ignore <name>")
+  .description("Persistently ignore a discovered API and remove it from this config")
+  .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
+  .action(ignoreCommand);
 
 program
   .command("show <api>")

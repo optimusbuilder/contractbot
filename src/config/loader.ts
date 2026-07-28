@@ -21,6 +21,7 @@ export async function loadConfig(path: string): Promise<ContractbotConfig> {
 
   return {
     apis,
+    discovery: { ...DEFAULT_CONFIG.discovery, ...parsed.discovery },
     ai: { ...DEFAULT_CONFIG.ai, ...parsed.ai },
     healing: { ...DEFAULT_CONFIG.healing, ...parsed.healing },
   };

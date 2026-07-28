@@ -73,7 +73,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     console.log();
     for (const api of candidates) {
       const badge = confidenceBadge(api.confidence);
-      console.log(`  ${badge} ${chalk.cyan.bold(api.name)}`);
+      console.log(`  ${badge} ${chalk.cyan.bold(api.name)} ${chalk.dim(`[${api.confidence} confidence]`)}`);
       for (const ev of api.evidence.slice(0, 3)) {
         console.log(`      ${chalk.dim("•")} ${chalk.dim(ev)}`);
       }

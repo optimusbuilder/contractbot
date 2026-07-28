@@ -150,12 +150,16 @@ export interface HealingConfig {
 
 export interface ContractbotConfig {
   apis: ApiEntry[];
+  discovery?: {
+    ignore?: string[];
+  };
   ai: AiConfig;
   healing: HealingConfig;
 }
 
 export const DEFAULT_CONFIG: ContractbotConfig = {
   apis: [],
+  discovery: { ignore: [] },
   ai: {
     provider: "openai",
     model: "gpt-4o-mini",

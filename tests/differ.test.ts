@@ -495,6 +495,18 @@ describe("diffSpecs", () => {
     expect(result.newVersion).toBe("2.0.0");
   });
 
+  it("flags source changes outside supported compatibility checks for review", () => {
+    const oldSpec = makeSpec({ info: { title: "API", version: "1" } });
+    const newSpec = makeSpec({ info: { title: "API", version: "1" } });
+    (newSpec.info as Record<string, string>).description = "Documentation changed";
+
+    const result = diffSpecs("my-api", oldSpec, newSpec);
+
+    expect(result.changes).toHaveLength(1);
+    expect(result.changes[0].severity).toBe("info");
+    expect(result.changes[0].description).toContain("review required");
+  });
+
   it("handles specs with no paths gracefully", () => {
     const result = diffSpecs("empty-api", makeSpec(), makeSpec());
     expect(result.changes).toHaveLength(0);

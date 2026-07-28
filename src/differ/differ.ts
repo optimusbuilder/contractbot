@@ -49,6 +49,15 @@ export function diffSpecs(
     }
   }
 
+  if (changes.length === 0 && JSON.stringify(oldSpec) !== JSON.stringify(newSpec)) {
+    changes.push({
+      severity: "info",
+      path: "",
+      method: "",
+      description: "OpenAPI source changed outside Contractbot's supported compatibility checks; review required.",
+    });
+  }
+
   return {
     apiName,
     oldVersion: oldSpec.info?.version,

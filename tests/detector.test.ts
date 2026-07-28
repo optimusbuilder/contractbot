@@ -126,6 +126,14 @@ describe("detectApis — no whitelist gate", () => {
     expect(names).not.toEqual(expect.arrayContaining(["example", "www", "metadata"]));
     expect(result.candidates.find((candidate) => candidate.name === "elevenlabs")?.suggestedContract?.type).toBe("openapi");
   });
+
+  it("finds Python f-string URLs, environment variables, and WebSocket hosts", async () => {
+    await writeFile(join(TEST_DIR, "package.json"), JSON.stringify({ name: "app" }), "utf-8");
+    await writeFile(join(TEST_DIR, "src/client.py"), 'import os\nkey = os.getenv("OPENAI_API_KEY")\nurl = f"https://api.openai.com/v1/{key}"\nws = "wss://api.deepgram.com/v1/listen"\n', "utf-8");
+
+    const result = await detectApis(TEST_DIR);
+    expect(result.candidates.map((candidate) => candidate.name)).toEqual(expect.arrayContaining(["openai", "deepgram"]));
+  });
 });
 
 describe("normalizeApiEntry", () => {

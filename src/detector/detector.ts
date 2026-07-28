@@ -289,19 +289,17 @@ async function detectFromCode(projectDir: string): Promise<{
     absolute: true,
   });
 
-  if (files.length === 0) return { matches: [], urls: [] };
-
   const project = new Project({
     compilerOptions: { allowJs: true, noEmit: true },
     skipAddingFilesFromTsConfig: true,
   });
 
-  for (const file of files.slice(0, 200)) {
+  for (const file of files) {
     project.addSourceFileAtPath(file);
   }
 
   const urlPattern =
-    /https?:\/\/[a-zA-Z0-9.*-]+\.[a-zA-Z]{2,}(?:\/[^\s'"`)]*)?/;
+    /(?:https?|wss?):\/\/[a-zA-Z0-9.*-]+\.[a-zA-Z]{2,}(?:\/[^\s'"`)]*)?/;
 
   for (const sourceFile of project.getSourceFiles()) {
     sourceFile.forEachDescendant((node) => {
@@ -345,6 +343,48 @@ async function detectFromCode(projectDir: string): Promise<{
         }
       }
     });
+  }
+
+  const polyglotFiles = await glob("**/*.{py,dart}", {
+    cwd: projectDir,
+    nodir: true,
+    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/tests/**", "**/__tests__/**"],
+    absolute: true,
+  });
+  const globalUrlPattern = new RegExp(urlPattern.source, "g");
+  for (const file of polyglotFiles) {
+    const text = await readFile(file, "utf-8");
+    for (const match of text.matchAll(globalUrlPattern)) {
+      const url = match[0];
+      if (isIgnorableUrl(url)) continue;
+      discoveredUrls.push(url);
+      const catalog = findCatalogByHost(url);
+      if (catalog) {
+        matches.push({
+          name: catalog.name,
+          catalog,
+          hosts: [originOf(url)],
+          packages: [],
+          evidence: [`code: URL "${url}" matches ${catalog.name}`],
+        });
+      }
+    }
+
+    const envPattern = file.endsWith(".py")
+      ? /(?:os\.getenv|os\.environ\.get)\(\s*["']([A-Z][A-Z0-9_]+)["']/g
+      : /(?:Platform\.environment|dotenv\.env)\[\s*["']([A-Z][A-Z0-9_]+)["']\s*\]/g;
+    for (const match of text.matchAll(envPattern)) {
+      const catalog = findCatalogByEnvVar(match[1]);
+      if (catalog) {
+        matches.push({
+          name: catalog.name,
+          catalog,
+          hosts: [],
+          packages: [],
+          evidence: [`code: ${match[1]} references ${catalog.name}`],
+        });
+      }
+    }
   }
 
   return { matches, urls: discoveredUrls };

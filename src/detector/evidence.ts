@@ -17,15 +17,17 @@ export async function collectDiscoveryEvidence(projectDir: string): Promise<Disc
   const hosts = new Set<string>();
   for (const name of await collectManifestDependencies(projectDir)) packages.add(name);
 
-  const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
+  const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs,py,dart}", {
     cwd: projectDir,
     nodir: true,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/tests/**", "**/__tests__/**", "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}"],
+    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/tests/**", "**/__tests__/**", "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}"],
   });
   for (const file of files.slice(0, 300)) {
     const text = await readFile(join(projectDir, file), "utf-8");
     for (const match of text.matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) environmentVariables.add(match[1]);
-    for (const match of text.matchAll(/https?:\/\/([a-zA-Z0-9.*-]+\.[a-zA-Z]{2,})/g)) hosts.add(match[1]);
+    for (const match of text.matchAll(/(?:os\.getenv|os\.environ\.get)\(\s*["']([A-Z][A-Z0-9_]+)["']/g)) environmentVariables.add(match[1]);
+    for (const match of text.matchAll(/(?:Platform\.environment|dotenv\.env)\[\s*["']([A-Z][A-Z0-9_]+)["']\s*\]/g)) environmentVariables.add(match[1]);
+    for (const match of text.matchAll(/(?:https?|wss?):\/\/([a-zA-Z0-9.*-]+\.[a-zA-Z]{2,})/g)) hosts.add(match[1]);
   }
 
   return {

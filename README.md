@@ -1,6 +1,6 @@
 # contractbot
 
-> Experimental open-source alpha. Contractbot helps teams detect whether an approved external API contract changed and verify that their application remains compatible before deployment.
+Contractbot helps teams review approved OpenAPI contract changes and verify application compatibility before deployment.
 
 ```
 discover -> review source -> approve baseline -> CI check -> verify -> accept
@@ -12,11 +12,11 @@ Contractbot is a CI-native compatibility check for external APIs. For an approve
 
 It is deliberately not an autonomous API repair agent. It never probes live endpoints to infer a contract, silently updates an approved baseline, edits code in CI, opens pull requests, or auto-merges changes.
 
-## Alpha Status
+## What Works Today
 
-The current alpha is intended for developers who can run it from source and want to help test the workflow with real integrations.
+Contractbot is focused on one dependable workflow: compare a provider's approved OpenAPI source to your committed baseline, then run the integration verification command you own.
 
-Supported today:
+It supports:
 
 - Approved OpenAPI sources and repository-stored baselines.
 - Static diffs for common endpoint, method, parameter, request, and response field changes.
@@ -24,12 +24,12 @@ Supported today:
 - Explicit baseline acceptance.
 - Optional manual AI migration suggestions from a confirmed change-set.
 
-Not yet a reliable promise:
+Outside the current scope:
 
 - Complete OpenAPI compatibility coverage, especially composed, nested, security, enum, and status-code changes.
 - Server-contract detection for APIs without a trustworthy published contract.
 - First-class SDK upgrade verification. SDK version changes are only a signal today.
-- Hosted or npm-distributed workflow. Do not use the generated GitHub Action until an alpha package release is announced.
+- Hosted, npm-distributed, or generated GitHub Action workflows. Run it from source or wire `contractbot ci` into your existing CI job.
 
 ## Try It From Source
 
@@ -50,7 +50,7 @@ git add .contractbot.yml .contractbot/baselines
 git commit -m "chore: baseline external API contracts"
 ```
 
-Discovery is only a suggestion. Review each detected provider, source URL, and scope before creating a baseline. The committed baseline is the trust boundary.
+Discovery is only a suggestion. Review each detected provider, source URL, and scope before creating a baseline. The committed baseline is the trust boundary. The alpha does not generate a CI workflow; add `npm run dev -- ci --fail-on breaking` to the CI job you already use.
 
 ## Configure An Integration
 
@@ -138,6 +138,7 @@ Contractbot must never be trusted to pick the contract source without review. Un
 | `setup` | Discover candidate API dependencies and write configuration. |
 | `baseline` | Fetch an approved OpenAPI baseline. |
 | `ci` | Compare the current contract to the approved baseline and run verification on change. |
+| `show <api>` | Read a pending change-set in the terminal. |
 | `accept <api>` | Promote a reviewed pending change-set to the approved baseline. |
 | `suggest <api>` | Generate an optional local AI migration draft from a pending change-set. |
 | `apply <patch-id>` | Interactively apply a saved migration draft. |

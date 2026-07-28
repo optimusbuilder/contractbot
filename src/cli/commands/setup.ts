@@ -10,7 +10,6 @@ import {
   ApiCandidate,
 } from "../../detector/index.js";
 import { resolveApiContract } from "../../resolver/index.js";
-import { writeGithubAction } from "../../output/github-action.js";
 import { logger } from "../../logger.js";
 
 interface SetupOptions {
@@ -21,7 +20,7 @@ interface SetupOptions {
 }
 
 /**
- * One-shot onboarding: discover → resolve → write config + GitHub Action.
+ * One-shot onboarding: discover → resolve → write config.
  * Remaining human steps: approve contract baselines and push.
  */
 export async function setupCommand(options: SetupOptions): Promise<void> {
@@ -32,12 +31,11 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
   if (configExists && options.force) {
     // Full re-init below
   } else if (configExists) {
-    logger.info("Config exists — resolving pending contracts and ensuring Action");
+    logger.info("Config exists — resolving pending contracts");
     if (!logger.isJsonMode()) {
       console.log(chalk.dim(`Using existing ${configPath}`));
     }
     await resolvePending(configPath, options.webSearch);
-    await ensureAction(projectDir, options.force);
     printNextSteps(configPath);
     return;
   }
@@ -147,9 +145,6 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     }
   }
 
-  // 4. Write Action
-  await ensureAction(projectDir, true);
-
   printNextSteps(configPath);
 }
 
@@ -183,17 +178,6 @@ async function resolvePending(
   spinner?.succeed(`Resolved ${resolvedCount}/${targets.length}`);
 }
 
-async function ensureAction(projectDir: string, force?: boolean): Promise<void> {
-  const result = await writeGithubAction({ dir: projectDir, force });
-  if (logger.isJsonMode()) return;
-
-  if (result.skipped) {
-    console.log(chalk.dim(`  Workflow already exists: ${result.path}`));
-  } else {
-    console.log(chalk.green.bold(`✓ Created ${result.path}`));
-  }
-}
-
 function printNextSteps(configPath: string): void {
   if (logger.isJsonMode()) return;
 
@@ -206,7 +190,7 @@ function printNextSteps(configPath: string): void {
   console.log(chalk.cyan("  2.") + " Commit and push:");
   console.log(
     chalk.dim(
-      `     git add ${configPath} .contractbot/baselines .github/workflows/contractbot.yml && git commit -m "chore: add contractbot" && git push`,
+      `     git add ${configPath} .contractbot/baselines && git commit -m "chore: add contractbot" && git push`,
     ),
   );
   console.log();

@@ -11,7 +11,6 @@ import {
   clearChangeSet,
   saveChangeSet,
 } from "../../differ/index.js";
-import { writeGithubAction } from "../../output/github-action.js";
 import { getOpenApiUrl, meetsMinUrgency, ApiUrgency } from "../../config/schema.js";
 import { checkSdkVersion } from "../../watcher/index.js";
 import { runVerification } from "../../verification.js";
@@ -21,16 +20,10 @@ interface CiOptions {
   config: string;
   failOn: string;
   output?: string;
-  generateAction?: boolean;
   minUrgency?: string;
 }
 
 export async function ciCommand(options: CiOptions): Promise<void> {
-  if (options.generateAction) {
-    await generateGithubAction();
-    return;
-  }
-
   const config = await loadConfig(options.config);
 
   if (config.apis.length === 0) {
@@ -204,7 +197,7 @@ export async function ciCommand(options: CiOptions): Promise<void> {
     );
   }
 
-  // GitHub Actions PR comment via step summary
+  // Surface the same report in CI systems that support a step summary.
   if (process.env.GITHUB_STEP_SUMMARY) {
     const summary = buildMarkdownSummary(reports, totalBreaking, totalNonBreaking);
     await writeFile(process.env.GITHUB_STEP_SUMMARY, summary, { flag: "a" } as any);
@@ -281,22 +274,4 @@ function buildMarkdownSummary(
   }
 
   return lines.join("\n");
-}
-
-async function generateGithubAction(): Promise<void> {
-  const result = await writeGithubAction();
-
-  if (result.skipped) {
-    console.log(chalk.yellow(`Workflow already exists: ${result.path}`));
-    return;
-  }
-
-  console.log(chalk.green.bold(`✓ Created ${result.path}`));
-  console.log();
-  console.log(chalk.white("The workflow will:"));
-  console.log(chalk.dim("  • Check approved API baselines every 15 minutes (no LLM)"));
-  console.log(chalk.dim("  • Upload reports and pending change-sets for review"));
-  console.log(chalk.dim("  • Never modify code or create PRs automatically"));
-  console.log();
-  console.log(chalk.dim("No LLM or GitHub write permissions are required."));
 }

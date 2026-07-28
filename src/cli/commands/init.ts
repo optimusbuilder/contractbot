@@ -9,13 +9,11 @@ import {
   candidateToApiEntry,
   ApiCandidate,
 } from "../../detector/index.js";
-import { writeGithubAction } from "../../output/github-action.js";
 import { logger } from "../../logger.js";
 
 interface InitOptions {
   dir: string;
   skipDetect?: boolean;
-  generateAction?: boolean;
 }
 
 /**
@@ -122,27 +120,16 @@ export async function initCommand(options: InitOptions): Promise<void> {
     }
     console.log();
     console.log(chalk.white("Tip: prefer one-shot setup:"));
-    console.log(chalk.dim("  contractbot setup          # discover + resolve + GitHub Action"));
+    console.log(chalk.dim("  contractbot setup          # discover + resolve + config"));
     console.log();
     console.log(chalk.white("Or continue manually:"));
     if (unresolved > 0) {
       console.log(chalk.dim("  1. contractbot resolve"));
     }
-    console.log(chalk.dim("  • contractbot ci --generate-action"));
     console.log(chalk.dim("  • Run contractbot baseline, then commit & push"));
     console.log();
   }
 
-  if (options.generateAction) {
-    const result = await writeGithubAction({ dir: projectDir });
-    if (!logger.isJsonMode()) {
-      if (result.skipped) {
-        console.log(chalk.yellow(`Workflow already exists: ${result.path}`));
-      } else {
-        console.log(chalk.green.bold(`✓ Created ${result.path}`));
-      }
-    }
-  }
 }
 
 function confidenceBadge(confidence: "high" | "medium" | "low"): string {

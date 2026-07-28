@@ -9,6 +9,7 @@ import { resolveCommand } from "./commands/resolve.js";
 import { baselineCommand } from "./commands/baseline.js";
 import { acceptCommand } from "./commands/accept.js";
 import { suggestCommand } from "./commands/suggest.js";
+import { showCommand } from "./commands/show.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -16,7 +17,7 @@ const program = new Command();
 program
   .name("contractbot")
   .description(
-    "CI-native compatibility checks for external APIs.",
+    "Review approved OpenAPI contract changes before deployment.",
   )
   .version("0.1.0")
   .option("--log-level <level>", "Log level: debug, info, warn, error", "info")
@@ -47,7 +48,7 @@ program
 program
   .command("setup")
   .description(
-    "One-shot setup: discover APIs, resolve contracts, write .contractbot.yml + GitHub Action",
+    "Discover APIs, resolve contract sources, and write .contractbot.yml",
   )
   .option("-d, --dir <path>", "Project directory to scan", ".")
   .option("--skip-detect", "Skip auto-detection and create an empty config", false)
@@ -60,7 +61,6 @@ program
   .description("Discover APIs and create .contractbot.yml (prefer: contractbot setup)")
   .option("-d, --dir <path>", "Project directory to scan", ".")
   .option("--skip-detect", "Skip auto-detection and create a blank config", false)
-  .option("--generate-action", "Also generate a GitHub Actions workflow", false)
   .action(initCommand);
 
 program
@@ -85,6 +85,11 @@ program
   );
 
 program
+  .command("show <api>")
+  .description("Show a readable pending API change-set")
+  .action(showCommand);
+
+program
   .command("suggest <api>")
   .description("Draft a local migration patch for a confirmed pending change-set")
   .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
@@ -105,7 +110,6 @@ program
   .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
   .option("--fail-on <level>", "Exit non-zero on: breaking, any, none", "breaking")
   .option("--output <path>", "Write JSON report to file")
-  .option("--generate-action", "Generate a GitHub Actions compatibility-check workflow", false)
   .option("--min-urgency <level>", "Only check APIs at or above this urgency", "low")
   .action(ciCommand);
 

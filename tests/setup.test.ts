@@ -4,7 +4,6 @@ import { existsSync } from "fs";
 import { join } from "path";
 import { setupCommand } from "../src/cli/commands/setup.js";
 import { initCommand } from "../src/cli/commands/init.js";
-import { GITHUB_ACTION_RELATIVE_PATH } from "../src/output/github-action.js";
 import { logger } from "../src/logger.js";
 
 const TEST_DIR = join(process.cwd(), ".test-setup-tmp");
@@ -27,7 +26,7 @@ afterEach(async () => {
 });
 
 describe("setupCommand", () => {
-  it("writes config + GitHub Action without Petstore placeholder", async () => {
+  it("writes config without a Petstore placeholder", async () => {
     await setupCommand({ dir: TEST_DIR, skipDetect: true });
 
     const configPath = join(TEST_DIR, ".contractbot.yml");
@@ -36,7 +35,7 @@ describe("setupCommand", () => {
     expect(yaml).not.toContain("petstore");
     expect(yaml).toMatch(/apis:\s*\[\]|apis:\s*$/m);
 
-    expect(existsSync(join(TEST_DIR, GITHUB_ACTION_RELATIVE_PATH))).toBe(true);
+    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(false);
   });
 
   it("detects stripe from package.json and resolves", async () => {
@@ -45,7 +44,7 @@ describe("setupCommand", () => {
     const yaml = await readFile(join(TEST_DIR, ".contractbot.yml"), "utf-8");
     expect(yaml).toContain("stripe");
     expect(yaml).toMatch(/openapi|sdk_package/);
-    expect(existsSync(join(TEST_DIR, GITHUB_ACTION_RELATIVE_PATH))).toBe(true);
+    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(false);
   });
 });
 

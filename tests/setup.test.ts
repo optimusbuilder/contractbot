@@ -35,7 +35,7 @@ describe("setupCommand", () => {
     expect(yaml).not.toContain("petstore");
     expect(yaml).toMatch(/apis:\s*\[\]|apis:\s*$/m);
 
-    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(true);
+    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(false);
   });
 
   it("detects stripe from package.json and resolves", async () => {

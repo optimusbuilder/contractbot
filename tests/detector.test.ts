@@ -134,6 +134,20 @@ describe("detectApis — no whitelist gate", () => {
     const result = await detectApis(TEST_DIR);
     expect(result.candidates.map((candidate) => candidate.name)).toEqual(expect.arrayContaining(["openai", "deepgram"]));
   });
+
+  it("filters documentation, CDN, browser, local, and bundled-asset URLs", async () => {
+    await mkdir(join(TEST_DIR, "ios", "App", "public"), { recursive: true });
+    await writeFile(join(TEST_DIR, "package.json"), JSON.stringify({ name: "app" }), "utf-8");
+    await writeFile(
+      join(TEST_DIR, "src/noise.ts"),
+      'const links = ["https://github.com/docs", "https://reactjs.org", "https://www.google.com", "https://upload.app.local", "https://www.googletagmanager.com"];',
+      "utf-8",
+    );
+    await writeFile(join(TEST_DIR, "ios", "App", "public", "bundle.js"), 'fetch("https://api.github.com")', "utf-8");
+
+    const result = await detectApis(TEST_DIR);
+    expect(result.candidates).toEqual([]);
+  });
 });
 
 describe("normalizeApiEntry", () => {

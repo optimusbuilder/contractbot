@@ -37,7 +37,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
       console.log(chalk.dim(`Using existing ${configPath}`));
     }
     await resolvePending(configPath, options.webSearch);
-    await ensureAction(projectDir, options.force);
+    await ensureActionIfReady(projectDir, await loadConfig(configPath), options.force);
     printNextSteps(configPath);
     return;
   }
@@ -147,11 +147,22 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     }
   }
 
-  await ensureAction(projectDir, true);
+  await ensureActionIfReady(projectDir, config, true);
   printNextSteps(configPath);
 }
 
-async function ensureAction(projectDir: string, force?: boolean): Promise<void> {
+async function ensureActionIfReady(
+  projectDir: string,
+  config: ContractbotConfig,
+  force?: boolean,
+): Promise<void> {
+  const unresolved = config.apis.filter((api) => api.needs_resolve || api.contract?.type === "unresolved");
+  if (config.apis.length === 0 || unresolved.length > 0) {
+    if (!logger.isJsonMode()) {
+      console.log(chalk.yellow(`Skipped CI workflow: review or ignore ${unresolved.length} unresolved API candidate(s) first.`));
+    }
+    return;
+  }
   const result = await writeGithubAction({ dir: projectDir, force });
   if (!logger.isJsonMode()) {
     console.log(result.skipped ? chalk.dim(`Workflow already exists: ${result.path}`) : chalk.green(`Created ${result.path}`));

@@ -282,6 +282,8 @@ async function detectFromCode(projectDir: string): Promise<{
       "**/dist/**",
       "**/build/**",
       "**/.next/**",
+      "**/ios/**/public/**",
+      "**/android/**/assets/**",
       "**/tests/**",
       "**/__tests__/**",
       "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}",
@@ -433,7 +435,18 @@ function isIgnorableUrl(url: string): boolean {
     return hostname === "example.com" ||
       hostname === "www.w3.org" ||
       hostname.endsWith(".google.internal") ||
-      hostname === "console.picovoice.ai";
+      hostname.endsWith(".local") ||
+      hostname === "console.picovoice.ai" ||
+      hostname === "accounts.google.com" ||
+      hostname === "www.google.com" ||
+      hostname === "youtube.com" ||
+      hostname === "github.com" ||
+      hostname === "reactjs.org" ||
+      hostname === "nextjs.org" ||
+      hostname === "vitejs.dev" ||
+      hostname === "capacitorjs.com" ||
+      hostname.includes("googletagmanager") ||
+      hostname.includes("elfsightcdn");
   } catch {
     return true;
   }

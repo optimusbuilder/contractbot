@@ -132,7 +132,7 @@ export function candidateToApiEntry(candidate: ApiCandidate): ApiEntry {
       ? (["spec_poll"] as WatchStrategy[])
       : contract.type === "sdk_package"
         ? (["sdk_version"] as WatchStrategy[])
-        : (["probe"] as WatchStrategy[]));
+        : ([] as WatchStrategy[]));
 
   const entry: ApiEntry = {
     name: candidate.name,
@@ -174,13 +174,6 @@ export function candidateToApiEntry(candidate: ApiCandidate): ApiEntry {
         entry.watch.strategies = [...(entry.watch.strategies ?? []), "changelog"];
       }
     }
-  }
-
-  if (contract.type === "unresolved" && candidate.hosts[0]) {
-    entry.watch = {
-      strategies: ["probe"],
-      probe: { base_url: candidate.hosts[0] },
-    };
   }
 
   return entry;
@@ -440,6 +433,11 @@ function isIgnorableUrl(url: string): boolean {
       hostname === "accounts.google.com" ||
       hostname === "www.google.com" ||
       hostname === "youtube.com" ||
+      hostname === "chatgpt.com" ||
+      hostname === "claude.ai" ||
+      hostname === "www.linkedin.com" ||
+      hostname === "x.com" ||
+      hostname === "via.placeholder.com" ||
       hostname === "github.com" ||
       hostname === "reactjs.org" ||
       hostname === "nextjs.org" ||

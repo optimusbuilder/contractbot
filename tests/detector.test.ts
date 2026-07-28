@@ -148,6 +148,20 @@ describe("detectApis — no whitelist gate", () => {
     const result = await detectApis(TEST_DIR);
     expect(result.candidates).toEqual([]);
   });
+
+  it("groups known provider hosts and leaves unknown contract sources unmonitored", async () => {
+    await writeFile(join(TEST_DIR, "package.json"), JSON.stringify({ name: "app" }), "utf-8");
+    await writeFile(
+      join(TEST_DIR, "src/providers.ts"),
+      'const urls = ["https://api.anthropic.com/v1/messages", "wss://api.deepgram.com/v1/listen", "https://api.groq.com/openai/v1", "https://securetoken.googleapis.com/v1/token"];',
+      "utf-8",
+    );
+
+    const result = await detectApis(TEST_DIR);
+    expect(result.candidates.map((candidate) => candidate.name)).toEqual(expect.arrayContaining(["anthropic", "deepgram", "groq", "firebase"]));
+    const anthropic = result.candidates.find((candidate) => candidate.name === "anthropic")!;
+    expect(candidateToApiEntry(anthropic).watch?.strategies).toEqual([]);
+  });
 });
 
 describe("normalizeApiEntry", () => {

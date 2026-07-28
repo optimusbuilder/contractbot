@@ -200,6 +200,48 @@ export const API_CATALOG: CatalogEntry[] = [
     defaultWatch: ["changelog"],
   },
   {
+    name: "anthropic",
+    baseUrls: ["https://api.anthropic.com"],
+    packages: ["@anthropic-ai/sdk", "anthropic"],
+    envVars: ["ANTHROPIC_API_KEY"],
+  },
+  {
+    name: "deepgram",
+    baseUrls: ["https://api.deepgram.com", "wss://api.deepgram.com"],
+    packages: ["@deepgram/sdk", "deepgram-sdk"],
+    envVars: ["DEEPGRAM_API_KEY"],
+  },
+  {
+    name: "assemblyai",
+    baseUrls: ["https://api.assemblyai.com"],
+    packages: ["assemblyai"],
+    envVars: ["ASSEMBLYAI_API_KEY"],
+  },
+  {
+    name: "openrouter",
+    baseUrls: ["https://openrouter.ai"],
+    packages: ["openrouter"],
+    envVars: ["OPENROUTER_API_KEY"],
+  },
+  {
+    name: "groq",
+    baseUrls: ["https://api.groq.com"],
+    packages: ["groq-sdk", "groq"],
+    envVars: ["GROQ_API_KEY", "EXPO_PUBLIC_GROQ_API_KEY"],
+  },
+  {
+    name: "posthog",
+    baseUrls: ["https://us.i.posthog.com", "https://app.posthog.com"],
+    packages: ["posthog-js", "posthog", "posthog-python", "posthog_flutter"],
+    envVars: ["POSTHOG_API_KEY", "NEXT_PUBLIC_POSTHOG_KEY"],
+  },
+  {
+    name: "mixpanel",
+    baseUrls: ["https://api.mixpanel.com"],
+    packages: ["mixpanel", "mixpanel-browser", "mixpanel_flutter"],
+    envVars: ["MIXPANEL_TOKEN", "NEXT_PUBLIC_MIXPANEL_TOKEN"],
+  },
+  {
     name: "discord",
     baseUrls: ["https://discord.com/api"],
     packages: ["discord.js", "discord-api-types"],
@@ -225,7 +267,7 @@ export const API_CATALOG: CatalogEntry[] = [
   },
   {
     name: "firebase",
-    baseUrls: ["https://firestore.googleapis.com", "https://firebase.googleapis.com"],
+    baseUrls: ["https://firestore.googleapis.com", "https://firebase.googleapis.com", "https://securetoken.googleapis.com"],
     packages: ["firebase", "firebase-admin"],
     envVars: ["FIREBASE_API_KEY", "FIREBASE_TOKEN"],
     contract: {

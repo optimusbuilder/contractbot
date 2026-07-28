@@ -23,13 +23,15 @@ It supports:
 - Configured integration verification after a confirmed OpenAPI change.
 - Explicit baseline acceptance.
 - Optional manual AI migration suggestions from a confirmed change-set.
+- A source-built GitHub Action that runs without an npm package release.
+- Changelog contracts that flag newly published provider updates for review.
 
 Outside the current scope:
 
 - Complete OpenAPI compatibility coverage, especially composed, nested, security, enum, and status-code changes.
 - Server-contract detection for APIs without a trustworthy published contract.
 - First-class SDK upgrade verification. SDK version changes are only a signal today.
-- Hosted, npm-distributed, or generated GitHub Action workflows. Run it from source or wire `contractbot ci` into your existing CI job.
+- Hosted or npm-distributed workflows.
 
 ## Try It From Source
 
@@ -46,11 +48,17 @@ npm run dev -- setup
 npm run dev -- baseline
 
 # Commit the reviewed source and baseline.
-git add .contractbot.yml .contractbot/baselines
+git add .contractbot.yml .contractbot/baselines .github
 git commit -m "chore: baseline external API contracts"
 ```
 
-Discovery is only a suggestion. Review each detected provider, source URL, and scope before creating a baseline. The committed baseline is the trust boundary. The alpha does not generate a CI workflow; add `npm run dev -- ci --fail-on breaking` to the CI job you already use.
+Discovery is only a suggestion. Review each detected provider, source URL, and scope before creating a baseline. The committed baseline is the trust boundary. Use `contractbot ignore <name>` to persistently remove a false positive from the config.
+
+## GitHub Action
+
+`setup` writes a read-only workflow that uses the source-built action at `optimusbuilder/contractbot@main`. It installs the target project's dependencies, builds Contractbot from the action source, runs `ci --fail-on breaking`, and uploads the report and pending change-sets as artifacts.
+
+Before using it for production enforcement, pin the action reference in `.github/workflows/contractbot.yml` to a reviewed commit or release tag.
 
 ## Configure An Integration
 
@@ -145,6 +153,8 @@ Contractbot must never be trusted to pick the contract source without review. Un
 | `resolve` | Resolve an explicitly configured but unresolved API source. |
 
 `watch` is currently a non-blocking alias for `ci`. It is not live-response probing.
+
+Changelog-only integrations can use `contract.type: changelog`. Contractbot records the first check as a baseline, then reports newly published entries as review signals. A changelog is not treated as a verified API contract diff.
 
 ## Principles
 

@@ -164,6 +164,16 @@ Changelog-only integrations can use `contract.type: changelog`. Contractbot reco
 - AI is optional assistance after evidence exists, not a decision-maker.
 - A provider that changes its server without publishing a contract, SDK update, or notice cannot be fully detected ahead of time.
 
+## AI Agent Usage
+
+Contractbot is designed to work with coding agents, but agents must not treat a detected change as approval to change production code or accept a new provider contract. The repository includes [`AGENTS.md`](AGENTS.md) with the required safe workflow:
+
+```text
+detect -> show evidence -> run verification -> request review -> accept only with explicit approval
+```
+
+`suggest` is optional and sends relevant source files to the configured LLM provider. An agent must obtain explicit approval before invoking it, applying a generated patch, or accepting a change-set.
+
 ## Development
 
 ```bash

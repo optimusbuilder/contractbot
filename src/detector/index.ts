@@ -12,3 +12,5 @@ export {
   findCatalogByName,
 } from "./registry.js";
 export type { CatalogEntry, KnownApi } from "./registry.js";
+export { collectDiscoveryEvidence } from "./evidence.js";
+export type { DiscoveryEvidence } from "./evidence.js";

@@ -11,6 +11,7 @@ import { acceptCommand } from "./commands/accept.js";
 import { suggestCommand } from "./commands/suggest.js";
 import { showCommand } from "./commands/show.js";
 import { ignoreCommand } from "./commands/ignore.js";
+import { discoverCommand } from "./commands/discover.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -84,6 +85,14 @@ program
       failOn: "none",
     }),
   );
+
+program
+  .command("discover")
+  .description("Print structured discovery evidence; use --ai for opt-in suggestions")
+  .option("-d, --dir <path>", "Project directory to inspect", ".")
+  .option("-c, --config <path>", "Path to config file")
+  .option("--ai", "Ask the configured LLM to interpret identifier-only evidence", false)
+  .action(discoverCommand);
 
 program
   .command("ignore <name>")

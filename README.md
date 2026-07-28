@@ -139,11 +139,22 @@ Setup looks for SDK packages, environment-variable names, and literal API hosts.
 
 Contractbot must never be trusted to pick the contract source without review. Unknown APIs remain unresolved until you provide a source or choose to ignore them.
 
+### Optional AI Discovery
+
+Run `contractbot discover --dir <project>` to inspect the structured evidence Contractbot collected. To ask a configured LLM to interpret that evidence, opt in explicitly:
+
+```bash
+contractbot discover --dir <project> --ai
+```
+
+AI discovery sends only dependency names, environment-variable names, and hostnames. It does not send source-file contents or secret values, and it never writes `.contractbot.yml`. Treat its output as a review queue: verify each suggested provider and contract source before adding it to configuration or creating a baseline.
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `setup` | Discover candidate API dependencies and write configuration. |
+| `discover` | Print identifier-only discovery evidence; `--ai` adds opt-in LLM suggestions. |
 | `baseline` | Fetch an approved OpenAPI baseline. |
 | `ci` | Compare the current contract to the approved baseline and run verification on change. |
 | `show <api>` | Read a pending change-set in the terminal. |

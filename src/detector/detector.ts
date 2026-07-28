@@ -343,7 +343,7 @@ async function detectFromCode(projectDir: string): Promise<{
   const polyglotFiles = await glob("**/*.{py,dart}", {
     cwd: projectDir,
     nodir: true,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/tests/**", "**/__tests__/**"],
+    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/venv/**", "**/.venv/**", "**/site-packages/**", "**/__pycache__/**", "**/tests/**", "**/__tests__/**"],
     absolute: true,
   });
   const globalUrlPattern = new RegExp(urlPattern.source, "g");

@@ -20,14 +20,16 @@ export async function collectDiscoveryEvidence(projectDir: string): Promise<Disc
   const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs,py,dart}", {
     cwd: projectDir,
     nodir: true,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/tests/**", "**/__tests__/**", "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}"],
+    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**", "**/ios/**/public/**", "**/android/**/assets/**", "**/venv/**", "**/.venv/**", "**/site-packages/**", "**/__pycache__/**", "**/tests/**", "**/__tests__/**", "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}"],
   });
   for (const file of files.slice(0, 300)) {
     const text = await readFile(join(projectDir, file), "utf-8");
     for (const match of text.matchAll(/process\.env\.([A-Z][A-Z0-9_]+)/g)) environmentVariables.add(match[1]);
     for (const match of text.matchAll(/(?:os\.getenv|os\.environ\.get)\(\s*["']([A-Z][A-Z0-9_]+)["']/g)) environmentVariables.add(match[1]);
     for (const match of text.matchAll(/(?:Platform\.environment|dotenv\.env)\[\s*["']([A-Z][A-Z0-9_]+)["']\s*\]/g)) environmentVariables.add(match[1]);
-    for (const match of text.matchAll(/(?:https?|wss?):\/\/([a-zA-Z0-9.*-]+\.[a-zA-Z]{2,})/g)) hosts.add(match[1]);
+    for (const match of text.matchAll(/(?:https?|wss?):\/\/([a-zA-Z0-9.*-]+\.[a-zA-Z]{2,})/g)) {
+      if (isRelevantHost(match[1])) hosts.add(match[1]);
+    }
   }
 
   return {
@@ -35,4 +37,16 @@ export async function collectDiscoveryEvidence(projectDir: string): Promise<Disc
     environmentVariables: [...environmentVariables].sort(),
     hosts: [...hosts].sort(),
   };
+}
+
+function isRelevantHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return !normalized.endsWith(".local") &&
+    normalized !== "example.com" &&
+    normalized !== "example.org" &&
+    normalized !== "github.com" &&
+    normalized !== "vitejs.dev" &&
+    normalized !== "www.w3.org" &&
+    !normalized.includes("readthedocs.io") &&
+    !normalized.startsWith("docs.");
 }

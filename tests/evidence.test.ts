@@ -18,4 +18,12 @@ describe("collectDiscoveryEvidence", () => {
       hosts: ["api.elevenlabs.io"],
     });
   });
+
+  it("excludes virtual-environment and documentation host noise", async () => {
+    await mkdir(join(DIR, "venv", "site-packages"), { recursive: true });
+    await writeFile(join(DIR, "venv", "site-packages", "docs.py"), 'fetch("https://docs.python.org")');
+    await writeFile(join(DIR, "app.py"), 'fetch("https://api.example.dev")');
+
+    expect((await collectDiscoveryEvidence(DIR)).hosts).toEqual(["api.example.dev"]);
+  });
 });

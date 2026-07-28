@@ -286,7 +286,15 @@ async function detectFromCode(projectDir: string): Promise<{
   const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
     cwd: projectDir,
     nodir: true,
-    ignore: ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"],
+    ignore: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/build/**",
+      "**/.next/**",
+      "**/tests/**",
+      "**/__tests__/**",
+      "**/*.{test,spec}.{ts,tsx,js,jsx,mjs,cjs}",
+    ],
     absolute: true,
   });
 

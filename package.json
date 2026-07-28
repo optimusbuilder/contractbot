@@ -1,7 +1,7 @@
 {
   "name": "contractbot",
   "version": "0.1.0",
-  "description": "Dependabot for APIs — discover API deps, watch contracts, open BYOK fix PRs.",
+  "description": "Review approved OpenAPI contract changes and verify compatibility in CI.",
   "type": "module",
   "bin": {
     "contractbot": "dist/cli/index.js"
@@ -13,17 +13,17 @@
     "lint": "eslint src/",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepublishOnly": "npm run build"
+    "test:pack": "node scripts/smoke-pack.mjs",
+    "prepublishOnly": "npm test && npm run test:pack"
   },
   "keywords": [
     "api",
-    "self-healing",
     "openapi",
     "swagger",
     "breaking-changes",
     "contract",
-    "ai",
-    "byok",
+    "api-compatibility",
+    "contract-testing",
     "cli",
     "developer-tools"
   ],

@@ -1,6 +1,11 @@
 node_modules/
 dist/
 .contractbot/cache/
+.contractbot/changes/
+.contractbot/ai-cache/
+.contractbot/patches/
+.contractbot/backups/
+.contractbot/history.json
 *.tgz
 .env
 .DS_Store

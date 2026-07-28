@@ -10,6 +10,7 @@ import {
   ApiCandidate,
 } from "../../detector/index.js";
 import { resolveApiContract } from "../../resolver/index.js";
+import { writeGithubAction } from "../../output/github-action.js";
 import { logger } from "../../logger.js";
 
 interface SetupOptions {
@@ -20,7 +21,7 @@ interface SetupOptions {
 }
 
 /**
- * One-shot onboarding: discover → resolve → write config.
+ * One-shot onboarding: discover → resolve → write config and a CI workflow.
  * Remaining human steps: approve contract baselines and push.
  */
 export async function setupCommand(options: SetupOptions): Promise<void> {
@@ -36,6 +37,7 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
       console.log(chalk.dim(`Using existing ${configPath}`));
     }
     await resolvePending(configPath, options.webSearch);
+    await ensureAction(projectDir, options.force);
     printNextSteps(configPath);
     return;
   }
@@ -145,7 +147,15 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
     }
   }
 
+  await ensureAction(projectDir, true);
   printNextSteps(configPath);
+}
+
+async function ensureAction(projectDir: string, force?: boolean): Promise<void> {
+  const result = await writeGithubAction({ dir: projectDir, force });
+  if (!logger.isJsonMode()) {
+    console.log(result.skipped ? chalk.dim(`Workflow already exists: ${result.path}`) : chalk.green(`Created ${result.path}`));
+  }
 }
 
 async function resolvePending(

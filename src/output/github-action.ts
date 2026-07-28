@@ -1,13 +1,12 @@
 import { existsSync } from "fs";
 import { mkdir, writeFile } from "fs/promises";
 import { join, resolve } from "path";
-import { readFileSync } from "fs";
 
 export interface WriteGithubActionOptions {
   /** Project root (default: cwd). */
   dir?: string;
-  /** Package version pin for npx (default: from package.json or "latest"). */
-  version?: string;
+  /** Git ref for the Contractbot action. Pin this to a release tag or commit in production. */
+  ref?: string;
   /** Overwrite an existing workflow file. */
   force?: boolean;
 }
@@ -18,28 +17,16 @@ export interface WriteGithubActionResult {
   skipped: boolean;
 }
 
-function defaultVersion(): string {
-  try {
-    const pkgPath = new URL("../../../package.json", import.meta.url);
-    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8")) as { version?: string };
-    return pkg.version ?? "latest";
-  } catch {
-    return "latest";
-  }
-}
-
 /** Relative workflow path from project root. */
 export const GITHUB_ACTION_RELATIVE_PATH = ".github/workflows/contractbot.yml";
 
 /**
  * Build the scheduled compatibility-check GitHub Actions workflow YAML.
  */
-export function buildGithubActionYaml(version = defaultVersion()): string {
-  const pkg = version === "latest" ? "contractbot" : `contractbot@${version}`;
-
+export function buildGithubActionYaml(ref = "main"): string {
   return `name: contractbot — external API compatibility check
 
-# Contract checks are deterministic. Migration suggestions are always manual.
+# Pin the action ref to a release tag or commit before using it in production.
 on:
   schedule:
     - cron: '*/15 * * * *'   # every 15 minutes
@@ -63,28 +50,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Restore HTTP cache (ETags only; baselines remain in git)
-        uses: actions/cache@v4
+      - uses: optimusbuilder/contractbot@${ref}
         with:
-          path: .contractbot/cache
-          key: contractbot-\${{ hashFiles('.contractbot.yml') }}-\${{ github.run_id }}
-          restore-keys: |
-            contractbot-\${{ hashFiles('.contractbot.yml') }}-
-            contractbot-
-
-      - name: Check API compatibility
-        id: check
-        run: npx ${pkg} ci --fail-on breaking --output api-report.json
-
-      - name: Upload report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-contract-report
-          path: |
-            api-report.json
-            .contractbot/changes
-
+          fail-on: breaking
 `;
 }
 
@@ -102,7 +70,7 @@ export async function writeGithubAction(
   }
 
   await mkdir(join(projectDir, ".github", "workflows"), { recursive: true });
-  await writeFile(workflowPath, buildGithubActionYaml(options.version), "utf-8");
+  await writeFile(workflowPath, buildGithubActionYaml(options.ref), "utf-8");
 
   return { path: workflowPath, created: true, skipped: false };
 }

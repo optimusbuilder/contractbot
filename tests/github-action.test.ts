@@ -21,34 +21,29 @@ afterEach(async () => {
 });
 
 describe("buildGithubActionYaml", () => {
-  it("pins npx to a version", () => {
-    const yaml = buildGithubActionYaml("0.1.0");
-    expect(yaml).toContain("npx contractbot@0.1.0 ci");
-    expect(yaml).toContain("--fail-on breaking");
-    expect(yaml).not.toContain("npx contractbot@0.1.0 pr");
-    expect(yaml).toContain(".contractbot/changes");
+  it("uses the source-built GitHub Action at the requested ref", () => {
+    const yaml = buildGithubActionYaml("v0");
+    expect(yaml).toContain("uses: optimusbuilder/contractbot@v0");
+    expect(yaml).toContain("fail-on: breaking");
     expect(yaml).toContain("contents: read");
-    expect(yaml).not.toContain("github-script");
-    expect(yaml).not.toContain("pull-requests: write");
     expect(yaml).toContain("*/15 * * * *");
   });
 
-  it("uses unversioned package for latest", () => {
+  it("uses the supplied action ref", () => {
     const yaml = buildGithubActionYaml("latest");
-    expect(yaml).toContain("npx contractbot ci");
-    expect(yaml).not.toContain("npx contractbot@latest");
+    expect(yaml).toContain("uses: optimusbuilder/contractbot@latest");
   });
 });
 
 describe("writeGithubAction", () => {
   it("writes the workflow file", async () => {
-    const result = await writeGithubAction({ dir: TEST_DIR, version: "0.1.0" });
+    const result = await writeGithubAction({ dir: TEST_DIR, ref: "v0" });
     expect(result.created).toBe(true);
     expect(result.skipped).toBe(false);
     expect(existsSync(join(TEST_DIR, GITHUB_ACTION_RELATIVE_PATH))).toBe(true);
 
     const body = await readFile(result.path, "utf-8");
-    expect(body).toContain("contractbot@0.1.0");
+    expect(body).toContain("contractbot@v0");
   });
 
   it("skips when file exists unless force", async () => {
@@ -63,9 +58,9 @@ describe("writeGithubAction", () => {
     const forced = await writeGithubAction({
       dir: TEST_DIR,
       force: true,
-      version: "0.1.0",
+      ref: "v0",
     });
     expect(forced.created).toBe(true);
-    expect(await readFile(path, "utf-8")).toContain("contractbot@0.1.0");
+    expect(await readFile(path, "utf-8")).toContain("contractbot@v0");
   });
 });

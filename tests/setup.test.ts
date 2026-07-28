@@ -35,7 +35,7 @@ describe("setupCommand", () => {
     expect(yaml).not.toContain("petstore");
     expect(yaml).toMatch(/apis:\s*\[\]|apis:\s*$/m);
 
-    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(false);
+    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(true);
   });
 
   it("detects stripe from package.json and resolves", async () => {
@@ -44,7 +44,7 @@ describe("setupCommand", () => {
     const yaml = await readFile(join(TEST_DIR, ".contractbot.yml"), "utf-8");
     expect(yaml).toContain("stripe");
     expect(yaml).toMatch(/openapi|sdk_package/);
-    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(false);
+    expect(existsSync(join(TEST_DIR, ".github", "workflows", "contractbot.yml"))).toBe(true);
   });
 });
 

@@ -1,0 +1,29 @@
+name: Contractbot
+description: Review approved OpenAPI contract changes before deployment.
+inputs:
+  config:
+    description: Path to the Contractbot configuration file in the target repository.
+    required: false
+    default: .contractbot.yml
+  fail-on:
+    description: Exit non-zero on breaking changes, any change, or never.
+    required: false
+    default: breaking
+runs:
+  using: composite
+  steps:
+    - name: Build Contractbot
+      shell: bash
+      run: npm ci --prefix "$GITHUB_ACTION_PATH" && npm run build --prefix "$GITHUB_ACTION_PATH"
+    - name: Check API compatibility
+      shell: bash
+      working-directory: ${{ github.workspace }}
+      run: node "$GITHUB_ACTION_PATH/dist/cli/index.js" ci --config "${{ inputs.config }}" --fail-on "${{ inputs.fail-on }}" --output api-report.json
+    - name: Upload compatibility report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: api-contract-report
+        path: |
+          api-report.json
+          .contractbot/changes

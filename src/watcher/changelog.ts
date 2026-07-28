@@ -72,9 +72,11 @@ async function fetchNewEntries(
       break;
   }
 
+  // The first check establishes a review baseline. Historical release notes are
+  // not evidence of a newly published change in the user's integration.
   const newEntries = cache
     ? entries.filter((e) => new Date(e.publishedAt) > new Date(cache.lastChecked))
-    : entries.slice(0, 5);
+    : [];
 
   await saveChangelogCache(apiName, source, entries);
 

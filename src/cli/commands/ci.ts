@@ -13,6 +13,7 @@ import {
 } from "../../differ/index.js";
 import { getOpenApiUrl, meetsMinUrgency, ApiUrgency } from "../../config/schema.js";
 import { checkSdkVersion } from "../../watcher/index.js";
+import { checkChangelogs } from "../../watcher/index.js";
 import { runVerification } from "../../verification.js";
 import type { VerificationResult } from "../../verification.js";
 
@@ -48,6 +49,28 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       if (api.needs_resolve || api.contract?.type === "unresolved") {
         spinner.warn(`${api.name}: unresolved — run contractbot resolve`);
         reports.push({ api: api.name, status: "error", breaking: 0, nonBreaking: 0 });
+        continue;
+      }
+
+      if (api.contract?.type === "changelog") {
+        const events = await checkChangelogs(api.name, api.contract.sources);
+        if (events.length === 0) {
+          spinner.succeed(`${api.name}: changelog unchanged (or baselined)`);
+          reports.push({ api: api.name, status: "stable", breaking: 0, nonBreaking: 0 });
+        } else {
+          totalNonBreaking += events.length;
+          spinner.warn(`${api.name}: ${events.length} published update(s) require review`);
+          reports.push({
+            api: api.name,
+            status: "published",
+            breaking: 0,
+            nonBreaking: events.length,
+            changes: events.map((event) => ({
+              severity: "info",
+              description: `${event.description}${event.details?.url ? ` (${event.details.url})` : ""}`,
+            })),
+          });
+        }
         continue;
       }
 
@@ -225,7 +248,7 @@ export async function ciCommand(options: CiOptions): Promise<void> {
 
 interface CiReport {
   api: string;
-  status: "stable" | "baseline" | "breaking" | "changed" | "incompatible" | "error";
+  status: "stable" | "baseline" | "breaking" | "changed" | "published" | "incompatible" | "error";
   breaking: number;
   nonBreaking: number;
   changes?: Array<{ severity: string; description: string }>;
@@ -253,7 +276,7 @@ function buildMarkdownSummary(
   lines.push("", "| API | Status | Breaking | Non-breaking |", "|-----|--------|----------|--------------|");
 
   for (const r of reports) {
-    const icon = r.status === "breaking" || r.status === "incompatible" ? ":red_circle:" : r.status === "changed" ? ":yellow_circle:" : ":green_circle:";
+    const icon = r.status === "breaking" || r.status === "incompatible" ? ":red_circle:" : r.status === "changed" || r.status === "published" ? ":yellow_circle:" : ":green_circle:";
     lines.push(`| ${r.api} | ${icon} ${r.status} | ${r.breaking} | ${r.nonBreaking} |`);
   }
 

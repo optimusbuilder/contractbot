@@ -2,6 +2,7 @@ import { readFile } from "fs/promises";
 import { existsSync } from "fs";
 import { join } from "path";
 import { glob } from "glob";
+import { collectManifestDependencies } from "./manifests.js";
 
 export interface DiscoveryEvidence {
   packages: string[];
@@ -14,12 +15,7 @@ export async function collectDiscoveryEvidence(projectDir: string): Promise<Disc
   const packages = new Set<string>();
   const environmentVariables = new Set<string>();
   const hosts = new Set<string>();
-  const packagePath = join(projectDir, "package.json");
-
-  if (existsSync(packagePath)) {
-    const pkg = JSON.parse(await readFile(packagePath, "utf-8")) as { dependencies?: Record<string, string>; devDependencies?: Record<string, string> };
-    for (const name of Object.keys({ ...pkg.dependencies, ...pkg.devDependencies })) packages.add(name);
-  }
+  for (const name of await collectManifestDependencies(projectDir)) packages.add(name);
 
   const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs}", {
     cwd: projectDir,

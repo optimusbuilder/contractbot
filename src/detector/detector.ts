@@ -15,6 +15,7 @@ import {
   ApiUrgency,
   WatchStrategy,
 } from "../config/schema.js";
+import { collectManifestDependencies } from "./manifests.js";
 
 export interface ApiCandidate {
   name: string;
@@ -217,19 +218,9 @@ function merge(map: Map<string, Accumulator>, match: PartialMatch): void {
 }
 
 async function detectFromPackageJson(projectDir: string): Promise<PartialMatch[]> {
-  const pkgPath = join(projectDir, "package.json");
-  if (!existsSync(pkgPath)) return [];
-
-  const content = await readFile(pkgPath, "utf-8");
-  const pkg = JSON.parse(content) as {
-    dependencies?: Record<string, string>;
-    devDependencies?: Record<string, string>;
-  };
-
-  const allDeps = { ...pkg.dependencies, ...pkg.devDependencies };
   const matches: PartialMatch[] = [];
 
-  for (const [pkgName] of Object.entries(allDeps)) {
+  for (const pkgName of await collectManifestDependencies(projectDir)) {
     const catalog = findCatalogByPackage(pkgName);
     if (catalog) {
       matches.push({
@@ -237,7 +228,7 @@ async function detectFromPackageJson(projectDir: string): Promise<PartialMatch[]
         catalog,
         hosts: [...catalog.baseUrls.filter((u) => u.startsWith("http"))],
         packages: [pkgName],
-        evidence: [`package.json: "${pkgName}" found in dependencies`],
+          evidence: [`manifest: "${pkgName}" found in dependencies`],
       });
     }
   }

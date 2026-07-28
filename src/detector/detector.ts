@@ -65,7 +65,7 @@ export async function detectApis(projectDir: string): Promise<DetectionResult> {
       continue;
     }
     const name = urlToName(url);
-    if (byName.has(name) || byName.has(catalogNameForUrl(url))) continue;
+    if (isIgnorableUrl(url) || byName.has(name) || byName.has(catalogNameForUrl(url))) continue;
     if ([...byName.values()].some((a) => a.hosts.some((h) => url.startsWith(h) || h.includes(hostnameOf(url))))) {
       continue;
     }
@@ -314,14 +314,14 @@ async function detectFromCode(projectDir: string): Promise<{
 
   for (const sourceFile of project.getSourceFiles()) {
     sourceFile.forEachDescendant((node) => {
-      if (
-        node.getKind() === SyntaxKind.StringLiteral ||
-        node.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral
-      ) {
-        const text = node.getText().slice(1, -1);
+      if (node.getKind() === SyntaxKind.StringLiteral || node.getKind() === SyntaxKind.NoSubstitutionTemplateLiteral || node.getKind() === SyntaxKind.TemplateExpression) {
+        const text = node.getKind() === SyntaxKind.TemplateExpression
+          ? node.asKindOrThrow(SyntaxKind.TemplateExpression).getHead().getLiteralText()
+          : node.getText().slice(1, -1);
         const urlMatch = text.match(urlPattern);
         if (urlMatch) {
           const url = urlMatch[0];
+          if (isIgnorableUrl(url)) return;
           discoveredUrls.push(url);
 
           const catalog = findCatalogByHost(url);
@@ -387,10 +387,24 @@ function confidenceRank(c: "high" | "medium" | "low"): number {
 
 function urlToName(url: string): string {
   try {
-    const hostname = new URL(url).hostname;
-    return hostname.replace(/^api\./, "").split(".")[0] || "unknown-api";
+    const labels = new URL(url).hostname.split(".");
+    const ignoredPrefixes = new Set(["api", "accounts", "console", "www"]);
+    while (labels.length > 2 && ignoredPrefixes.has(labels[0])) labels.shift();
+    return labels.length > 1 ? labels[labels.length - 2] : labels[0] || "unknown-api";
   } catch {
     return "unknown-api";
+  }
+}
+
+function isIgnorableUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.toLowerCase();
+    return hostname === "example.com" ||
+      hostname === "www.w3.org" ||
+      hostname.endsWith(".google.internal") ||
+      hostname === "console.picovoice.ai";
+  } catch {
+    return true;
   }
 }
 

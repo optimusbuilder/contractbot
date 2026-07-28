@@ -100,6 +100,32 @@ describe("detectApis — no whitelist gate", () => {
     expect(entry.watch?.strategies).toContain("sdk_version");
     expect(entry.spec).toBeUndefined();
   });
+
+  it("finds SDK-only providers, template URLs, and filters known URL noise", async () => {
+    await writeFile(
+      join(TEST_DIR, "package.json"),
+      JSON.stringify({
+        dependencies: {
+          "@google/generative-ai": "1.0.0",
+          "@google/adk": "1.0.0",
+          "@picovoice/porcupine-node": "1.0.0",
+        },
+      }),
+      "utf-8",
+    );
+    await writeFile(
+      join(TEST_DIR, "src/client.ts"),
+      `const eleven = \`https://api.elevenlabs.io/v1/${"${voiceId}"}\`;\nconst tavily = "https://api.tavily.com/search";\nconst noise = ["https://example.com/apply", "http://www.w3.org/2000/svg", "http://metadata.google.internal/token"];\n`,
+      "utf-8",
+    );
+
+    const result = await detectApis(TEST_DIR);
+    const names = result.candidates.map((candidate) => candidate.name);
+
+    expect(names).toEqual(expect.arrayContaining(["elevenlabs", "tavily", "gemini", "google-adk", "picovoice"]));
+    expect(names).not.toEqual(expect.arrayContaining(["example", "www", "metadata"]));
+    expect(result.candidates.find((candidate) => candidate.name === "elevenlabs")?.suggestedContract?.type).toBe("openapi");
+  });
 });
 
 describe("normalizeApiEntry", () => {

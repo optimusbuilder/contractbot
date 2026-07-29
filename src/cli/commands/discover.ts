@@ -57,12 +57,32 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
     "You may query only listed evidence values. Do not infer providers yet.",
   );
   const queries = parseEvidenceQueries(plan, knownValues);
-  const selected = queries.flatMap((query) => queryIntegrationEvidence(evidence, query));
+  const selected = deduplicateEvidence([
+    ...evidence.filter(isPriorityIntegrationEvidence),
+    ...queries.flatMap((query) => queryIntegrationEvidence(evidence, query)),
+  ]).slice(0, 32);
   const response = await provider.generate(
     `Classify external integrations from cited evidence. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify providers supported by evidence. Do not return frameworks, package names, env-var names, or code changes.\n\nSelected evidence: ${JSON.stringify(selected)}`,
     "You are a conservative external integration investigator. Cite only supplied evidence.",
   );
   console.log(JSON.stringify(validateAgentCandidates(response, selected), null, 2));
+}
+
+function isPriorityIntegrationEvidence(item: { kind: string; value: string }): boolean {
+  if (item.kind === "http_request" || item.kind === "websocket_api") return true;
+  if (item.kind === "environment_variable") return /(?:API_KEY|ACCESS_KEY|SECRET|TOKEN|CLIENT_ID|PROJECT_ID|URI)$/.test(item.value);
+  if (item.kind === "sdk_import") return /(^@aws-sdk\/|sdk|client|api|langchain|google|openai|anthropic|browserbase|mongodb|mongoose|langsmith)/i.test(item.value);
+  return false;
+}
+
+function deduplicateEvidence<T extends { kind: string; value: string; file: string; line: number }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter((item) => {
+    const key = `${item.kind}:${item.value}:${item.file}:${item.line}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function validateAgentCandidates(response: string, evidence: Array<{ file: string; line: number; kind: string; value: string }>): { candidates: unknown[] } {

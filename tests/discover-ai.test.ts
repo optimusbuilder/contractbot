@@ -34,11 +34,11 @@ describe("validateAgentCandidates", () => {
     expect(validateAgentCandidates(response, [{ file: "src/app.tsx", line: 1, kind: "sdk_import", value: "framer-motion" }]).candidates).toEqual([]);
   });
 
-  it("rejects an AI provider alias that conflicts with a catalogued SDK", () => {
+  it("normalizes an AI provider alias that cites a catalogued SDK", () => {
     const response = JSON.stringify({ candidates: [
       { provider: "google", classification: "sdk_client", confidence: "high", evidence: [{ file: "src/app.ts", line: 1, kind: "sdk_import", value: "@google/generative-ai" }], suggestedContractKind: "sdk_package", sourceConfidence: "high" },
     ] });
-    expect(validateAgentCandidates(response, [{ file: "src/app.ts", line: 1, kind: "sdk_import", value: "@google/generative-ai" }]).candidates).toEqual([]);
+    expect(validateAgentCandidates(response, [{ file: "src/app.ts", line: 1, kind: "sdk_import", value: "@google/generative-ai" }]).candidates).toMatchObject([{ provider: "gemini" }]);
   });
 });
 

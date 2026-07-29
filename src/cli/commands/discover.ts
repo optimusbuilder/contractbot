@@ -6,6 +6,7 @@ import { createProvider } from "../../providers/index.js";
 import { DEFAULT_CONFIG } from "../../config/schema.js";
 import { loadConfig } from "../../config/loader.js";
 import { buildIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
+import { normalizeProviderFromEvidence } from "../../investigator/index.js";
 
 interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean }
 
@@ -140,9 +141,13 @@ export function validateAgentCandidates(response: string, evidence: Array<{ file
         .filter((citation): citation is { kind: string; value: string } => Boolean(citation && typeof citation === "object" && typeof (citation as { kind?: unknown }).kind === "string" && typeof (citation as { value?: unknown }).value === "string"))
         .map((citation) => citation.kind === "sdk_import" ? findCatalogByPackage(citation.value)?.name : undefined)
         .filter((provider): provider is string => Boolean(provider));
-      return catalogProviders.length === 0 || catalogProviders.includes(item.provider);
+      const normalized = normalizeProviderFromEvidence(item.provider, item.evidence as Array<{ kind?: string; value?: string }>);
+      return catalogProviders.length === 0 || catalogProviders.includes(normalized);
     });
-    return { candidates };
+    return { candidates: candidates.map((candidate) => ({
+      ...(candidate as Record<string, unknown>),
+      provider: normalizeProviderFromEvidence((candidate as { provider: string }).provider, (candidate as { evidence: Array<{ kind?: string; value?: string }> }).evidence),
+    })) };
   } catch { return { candidates: [] }; }
 }
 

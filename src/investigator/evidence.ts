@@ -15,8 +15,12 @@ const IGNORE = ["**/node_modules/**", "**/dist/**", "**/build/**", "**/.next/**"
 const URL = /(?:https?|wss?):\/\/[a-zA-Z0-9.*-]+\.[a-zA-Z]{2,}(?:\/[^\s'"`)]*)?/;
 
 /** Builds cited, intent-aware evidence without sending any source content elsewhere. */
-export async function buildIntegrationEvidence(projectDir: string): Promise<IntegrationEvidence[]> {
-  const files = await glob("**/*.{ts,tsx,js,jsx,mjs,cjs}", { cwd: projectDir, nodir: true, ignore: IGNORE, absolute: true });
+export async function listIntegrationEvidenceFiles(projectDir: string): Promise<string[]> {
+  return glob("**/*.{ts,tsx,js,jsx,mjs,cjs}", { cwd: projectDir, nodir: true, ignore: IGNORE, absolute: true });
+}
+
+export async function buildIntegrationEvidence(projectDir: string, filePaths?: string[]): Promise<IntegrationEvidence[]> {
+  const files = filePaths ?? await listIntegrationEvidenceFiles(projectDir);
   const project = new Project({ compilerOptions: { allowJs: true, noEmit: true }, skipAddingFilesFromTsConfig: true });
   files.forEach((file) => project.addSourceFileAtPath(file));
   const evidence: IntegrationEvidence[] = [];

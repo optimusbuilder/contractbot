@@ -5,11 +5,11 @@ import { findCatalogByEnvVar, findCatalogByHost, findCatalogByPackage } from "..
 import { createProvider } from "../../providers/index.js";
 import { DEFAULT_CONFIG } from "../../config/schema.js";
 import { loadConfig } from "../../config/loader.js";
-import { buildIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
+import { buildCachedIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
 import { normalizeProviderFromEvidence } from "../../investigator/index.js";
 import { saveDiscoveryReview } from "../../investigator/index.js";
 
-interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean }
+interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean; refresh?: boolean }
 
 interface AiSuggestion {
   name: string;
@@ -30,7 +30,7 @@ export async function discoverCommand(options: DiscoverOptions): Promise<void> {
   const config = existsSync(configPath) ? await loadConfig(configPath) : DEFAULT_CONFIG;
   const provider = createProvider(config.ai);
   if (options.agent) {
-    await runAgenticDiscovery(projectDir, provider);
+    await runAgenticDiscovery(projectDir, provider, options.refresh);
     return;
   }
   const deterministic = await detectApis(projectDir);
@@ -50,8 +50,8 @@ export async function discoverCommand(options: DiscoverOptions): Promise<void> {
   console.log(JSON.stringify({ suggestions, rejectedSuggestionCount: countSuggestions(response) - suggestions.length }, null, 2));
 }
 
-async function runAgenticDiscovery(projectDir: string, provider: ReturnType<typeof createProvider>): Promise<void> {
-  const evidence = await buildIntegrationEvidence(projectDir);
+async function runAgenticDiscovery(projectDir: string, provider: ReturnType<typeof createProvider>, refresh = false): Promise<void> {
+  const evidence = await buildCachedIntegrationEvidence(projectDir, refresh);
   const index = evidence.map(({ kind, value, file, line }) => ({ kind, value, file, line }));
   const knownValues = new Set(evidence.map((item) => item.value));
   const plan = await provider.generate(

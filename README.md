@@ -157,6 +157,8 @@ contractbot discover --dir <project> --agent
 
 The agent first sees an evidence index, requests up to eight exact evidence values, then receives only the matching short call-site contexts. Its final provider classifications are rejected unless every file, line, kind, and value citation matches deterministic evidence. Agent output remains a review queue and never writes configuration.
 
+Validated findings are saved locally to `.contractbot/reviews/discovery.json` and can be inspected with `contractbot review`. They remain ignored by Git and require a human to approve, edit, ignore, or mark an integration internal before configuration changes.
+
 ## Commands
 
 | Command | Purpose |

@@ -13,6 +13,7 @@ import { showCommand } from "./commands/show.js";
 import { ignoreCommand } from "./commands/ignore.js";
 import { discoverCommand } from "./commands/discover.js";
 import { investigateCommand } from "./commands/investigate.js";
+import { reviewCommand } from "./commands/review.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -86,6 +87,12 @@ program
       failOn: "none",
     }),
   );
+
+program
+  .command("review")
+  .description("Show validated AI discovery findings awaiting human review")
+  .option("-d, --dir <path>", "Project directory", ".")
+  .action(reviewCommand);
 
 program
   .command("investigate <api>")

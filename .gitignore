@@ -6,6 +6,7 @@ dist/
 .contractbot/patches/
 .contractbot/backups/
 .contractbot/history.json
+.contractbot/reviews/
 *.tgz
 .env
 .DS_Store

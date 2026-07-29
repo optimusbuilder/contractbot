@@ -7,6 +7,7 @@ import { DEFAULT_CONFIG } from "../../config/schema.js";
 import { loadConfig } from "../../config/loader.js";
 import { buildIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
 import { normalizeProviderFromEvidence } from "../../investigator/index.js";
+import { saveDiscoveryReview } from "../../investigator/index.js";
 
 interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean }
 
@@ -70,7 +71,9 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
     );
     candidates.push(...validateAgentCandidates(response, cluster).candidates);
   }
-  console.log(JSON.stringify({ candidates: deduplicateAgentCandidates(candidates) }, null, 2));
+  const reviewed = deduplicateAgentCandidates(candidates);
+  const reviewPath = await saveDiscoveryReview(projectDir, reviewed);
+  console.log(JSON.stringify({ candidates: reviewed, reviewPath }, null, 2));
 }
 
 function isPriorityIntegrationEvidence(item: { kind: string; value: string }): boolean {

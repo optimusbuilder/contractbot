@@ -12,6 +12,7 @@ describe("GitHub Action manifest", () => {
     expect(manifest.inputs?.config?.default).toBe(".contractbot.yml");
     expect(manifest.inputs?.["fail-on"]?.default).toBe("breaking");
     expect(manifest.runs?.using).toBe("composite");
+    expect(manifest.runs?.steps?.some((step) => step.uses === "actions/setup-node@v4")).toBe(true);
     expect(manifest.runs?.steps?.some((step) => step.run?.includes("npm run build --prefix \"$GITHUB_ACTION_PATH\""))).toBe(true);
     expect(manifest.runs?.steps?.some((step) => step.run?.includes("dist/cli/index.js\" ci"))).toBe(true);
     expect(manifest.runs?.steps?.some((step) => step.uses === "actions/upload-artifact@v4")).toBe(true);

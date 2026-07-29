@@ -23,13 +23,14 @@ export const GITHUB_ACTION_RELATIVE_PATH = ".github/workflows/contractbot.yml";
 /**
  * Build the scheduled compatibility-check GitHub Actions workflow YAML.
  */
-export function buildGithubActionYaml(ref = "main"): string {
+export function buildGithubActionYaml(ref = "v0"): string {
   return `name: contractbot — external API compatibility check
 
 # Pin the action ref to a release tag or commit before using it in production.
 on:
   schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
+    # Every four hours. Edit this cron expression to choose your own cadence.
+    - cron: '17 */4 * * *'
   workflow_dispatch:
   pull_request:
     branches: [main, master]
@@ -42,13 +43,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - run: npm ci
 
       - uses: optimusbuilder/contractbot@${ref}
         with:

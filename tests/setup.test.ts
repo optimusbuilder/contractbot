@@ -6,6 +6,7 @@ import { setupCommand } from "../src/cli/commands/setup.js";
 import { initCommand } from "../src/cli/commands/init.js";
 import { logger } from "../src/logger.js";
 import { isSupportedByEvidence } from "../src/cli/commands/setup.js";
+import { buildGithubActionYaml } from "../src/output/github-action.js";
 
 const TEST_DIR = join(process.cwd(), ".test-setup-tmp");
 
@@ -75,5 +76,14 @@ describe("setup evidence admission", () => {
       { name: "elevenlabs", hosts: ["https://api.elevenlabs.io"], packages: [], evidence: [], confidence: "high", scanPaths: [], needsResolve: false },
       [{ kind: "http_request", value: "https://api.elevenlabs.io/v1/voices", file: "src/voice.ts", line: 1, context: "fetch(...)" }],
     )).toBe(true);
+  });
+});
+
+describe("generated GitHub workflow", () => {
+  it("uses the release action without assuming a Node consumer repository", () => {
+    const workflow = buildGithubActionYaml();
+    expect(workflow).toContain("uses: optimusbuilder/contractbot@v0");
+    expect(workflow).not.toContain("npm ci");
+    expect(workflow).toContain("cron: '17 */4 * * *'");
   });
 });

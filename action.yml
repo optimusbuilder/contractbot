@@ -12,6 +12,12 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Set up Contractbot runtime
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: ${{ github.action_path }}/package-lock.json
     - name: Build Contractbot
       shell: bash
       run: npm ci --prefix "$GITHUB_ACTION_PATH" && npm run build --prefix "$GITHUB_ACTION_PATH"

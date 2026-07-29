@@ -21,12 +21,14 @@ afterEach(async () => {
 });
 
 describe("buildGithubActionYaml", () => {
-  it("uses the source-built GitHub Action at the requested ref", () => {
+  it("uses the requested release action without assuming the consumer uses Node", () => {
     const yaml = buildGithubActionYaml("v0");
     expect(yaml).toContain("uses: optimusbuilder/contractbot@v0");
     expect(yaml).toContain("fail-on: breaking");
     expect(yaml).toContain("contents: read");
-    expect(yaml).toContain("*/15 * * * *");
+    expect(yaml).toContain("17 */4 * * *");
+    expect(yaml).not.toContain("npm ci");
+    expect(yaml).not.toContain("actions/setup-node");
   });
 
   it("uses the supplied action ref", () => {

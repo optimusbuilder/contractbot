@@ -159,12 +159,24 @@ The agent first sees an evidence index, requests up to eight exact evidence valu
 
 Validated findings are saved locally to `.contractbot/reviews/discovery.json` and can be inspected with `contractbot review`. They remain ignored by Git and require a human to approve, edit, ignore, or mark an integration internal before configuration changes.
 
+Explicit review actions are the only path from an agent finding to configuration:
+
+```bash
+contractbot review ignore <provider>
+contractbot review internal <provider>
+contractbot review add <provider> --contract sdk_package --source <approved-package>
+contractbot review add <provider> --contract openapi --source <approved-spec-url>
+```
+
+`review add` requires a human-approved source. It never adopts an AI-suggested source automatically.
+
 ## Commands
 
 | Command | Purpose |
 | --- | --- |
 | `setup` | Discover candidate API dependencies and write configuration. |
 | `discover` | Print identifier-only discovery evidence; `--ai` adds opt-in LLM suggestions. |
+| `review` | Inspect agent findings or explicitly add, ignore, or mark a finding internal. |
 | `baseline` | Fetch an approved OpenAPI baseline. |
 | `ci` | Compare the current contract to the approved baseline and run verification on change. |
 | `show <api>` | Read a pending change-set in the terminal. |

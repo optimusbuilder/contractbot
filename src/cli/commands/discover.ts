@@ -130,11 +130,17 @@ export function validateAgentCandidates(response: string, evidence: Array<{ file
       // A generic library is not an integration candidate. Hosted SDK clients
       // must identify a plausible contract family before reaching review.
       if (item.classification === "sdk_client" && item.suggestedContractKind === "unknown") return false;
-      return item.evidence.every((citation) => {
+      const citationsValid = item.evidence.every((citation) => {
         if (!citation || typeof citation !== "object") return false;
         const cited = citation as { file?: string; line?: number; kind?: string; value?: string };
         return locations.has(`${cited.file}:${cited.line}:${cited.kind}:${cited.value}`);
       });
+      if (!citationsValid) return false;
+      const catalogProviders = item.evidence
+        .filter((citation): citation is { kind: string; value: string } => Boolean(citation && typeof citation === "object" && typeof (citation as { kind?: unknown }).kind === "string" && typeof (citation as { value?: unknown }).value === "string"))
+        .map((citation) => citation.kind === "sdk_import" ? findCatalogByPackage(citation.value)?.name : undefined)
+        .filter((provider): provider is string => Boolean(provider));
+      return catalogProviders.length === 0 || catalogProviders.includes(item.provider);
     });
     return { candidates };
   } catch { return { candidates: [] }; }

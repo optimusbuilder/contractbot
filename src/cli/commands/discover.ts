@@ -61,11 +61,15 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
     ...evidence.filter(isPriorityIntegrationEvidence),
     ...queries.flatMap((query) => queryIntegrationEvidence(evidence, query)),
   ]).slice(0, 32);
-  const response = await provider.generate(
-    `Classify external integrations from cited evidence. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify providers supported by evidence. Do not return frameworks, package names, env-var names, or code changes.\n\nSelected evidence: ${JSON.stringify(selected)}`,
-    "You are a conservative external integration investigator. Cite only supplied evidence.",
-  );
-  console.log(JSON.stringify(validateAgentCandidates(response, selected), null, 2));
+  const candidates: unknown[] = [];
+  for (const cluster of clusterIntegrationEvidence(selected).slice(0, 8)) {
+    const response = await provider.generate(
+      `Classify external integrations from this one local evidence cluster. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
+      "You are a conservative external integration investigator. Cite only supplied evidence.",
+    );
+    candidates.push(...validateAgentCandidates(response, cluster).candidates);
+  }
+  console.log(JSON.stringify({ candidates: deduplicateAgentCandidates(candidates) }, null, 2));
 }
 
 function isPriorityIntegrationEvidence(item: { kind: string; value: string }): boolean {
@@ -81,6 +85,30 @@ function deduplicateEvidence<T extends { kind: string; value: string; file: stri
     const key = `${item.kind}:${item.value}:${item.file}:${item.line}`;
     if (seen.has(key)) return false;
     seen.add(key);
+    return true;
+  });
+}
+
+export function clusterIntegrationEvidence<T extends { kind: string; value: string; file: string; line: number }>(evidence: T[]): T[][] {
+  const clusters = new Map<string, T[]>();
+  for (const item of evidence) {
+    const cluster = clusters.get(item.file) ?? [];
+    cluster.push(item);
+    clusters.set(item.file, cluster);
+  }
+  return [...clusters.values()].sort((a, b) => clusterScore(b) - clusterScore(a));
+}
+
+function clusterScore(cluster: Array<{ kind: string }>): number {
+  return cluster.reduce((score, item) => score + (item.kind === "http_request" || item.kind === "websocket_api" ? 4 : item.kind === "sdk_import" ? 3 : item.kind === "environment_variable" ? 2 : 1), 0);
+}
+
+function deduplicateAgentCandidates(candidates: unknown[]): unknown[] {
+  const seen = new Set<string>();
+  return candidates.filter((candidate) => {
+    const provider = candidate && typeof candidate === "object" ? (candidate as { provider?: unknown }).provider : undefined;
+    if (typeof provider !== "string" || seen.has(provider)) return false;
+    seen.add(provider);
     return true;
   });
 }

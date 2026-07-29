@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterAiSuggestions, validateAgentCandidates } from "../src/cli/commands/discover.js";
+import { clusterIntegrationEvidence, filterAiSuggestions, validateAgentCandidates } from "../src/cli/commands/discover.js";
 
 describe("filterAiSuggestions", () => {
   it("accepts evidence-backed canonical providers and rejects raw identifiers", () => {
@@ -32,5 +32,17 @@ describe("validateAgentCandidates", () => {
       { provider: "framer-motion", classification: "sdk_client", confidence: "high", evidence: [{ file: "src/app.tsx", line: 1, kind: "sdk_import", value: "framer-motion" }], suggestedContractKind: "unknown", sourceConfidence: "high" },
     ] });
     expect(validateAgentCandidates(response, [{ file: "src/app.tsx", line: 1, kind: "sdk_import", value: "framer-motion" }]).candidates).toEqual([]);
+  });
+});
+
+describe("clusterIntegrationEvidence", () => {
+  it("keeps related evidence in a cited file cluster and prioritizes HTTP evidence", () => {
+    const clusters = clusterIntegrationEvidence([
+      { kind: "sdk_import", value: "@aws-sdk/client-bedrock-runtime", file: "lib/bedrock.ts", line: 1 },
+      { kind: "environment_variable", value: "AWS_REGION", file: "lib/bedrock.ts", line: 2 },
+      { kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 },
+    ]);
+    expect(clusters[0]).toHaveLength(2);
+    expect(clusters[1]).toEqual([{ kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 }]);
   });
 });

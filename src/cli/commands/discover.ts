@@ -8,6 +8,7 @@ import { loadConfig } from "../../config/loader.js";
 import { buildCachedIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
 import { normalizeProviderFromEvidence } from "../../investigator/index.js";
 import { saveDiscoveryReview } from "../../investigator/index.js";
+import { buildProviderEvidenceClusters } from "../../investigator/index.js";
 
 interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean; refresh?: boolean }
 
@@ -66,9 +67,11 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
     ...queries.flatMap((query) => queryIntegrationEvidence(evidence, query)),
   ]);
   const candidates: unknown[] = [];
-  for (const cluster of selectAgentClusters(selected, 8)) {
+  const providerClusters = buildProviderEvidenceClusters(selected);
+  for (const providerCluster of providerClusters.slice(0, 8)) {
+    const cluster = providerCluster.evidence.slice(0, 16);
     const response = await provider.generate(
-      `Classify external integrations from this one local evidence cluster. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
+      `Classify this provider evidence cluster. The deterministic seed is "${providerCluster.provider}". Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
       "You are a conservative external integration investigator. Cite only supplied evidence.",
     );
     candidates.push(...validateAgentCandidates(response, cluster).candidates);

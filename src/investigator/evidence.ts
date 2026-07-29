@@ -38,13 +38,13 @@ export async function buildIntegrationEvidence(projectDir: string): Promise<Inte
       if (!text) continue;
       const match = text.match(URL);
       if (!match) continue;
-      evidence.push({ kind: classifyUrlContext(node, match[0]), value: match[0], file: sourceFile.getFilePath(), line: node.getStartLineNumber(), context: nearestContext(node) });
+      evidence.push({ kind: classifyUrlContext(node, match[0], sourceFile.getText()), value: match[0], file: sourceFile.getFilePath(), line: node.getStartLineNumber(), context: nearestContext(node) });
     }
   }
   return deduplicate(evidence);
 }
 
-function classifyUrlContext(node: Node, url: string): EvidenceKind {
+function classifyUrlContext(node: Node, url: string, sourceText: string): EvidenceKind {
   for (let current: Node | undefined = node; current; current = current.getParent()) {
     if (Node.isJsxAttribute(current) && current.getNameNode().getText() === "src") return "static_asset";
     if (Node.isCallExpression(current)) {
@@ -53,6 +53,14 @@ function classifyUrlContext(node: Node, url: string): EvidenceKind {
       if (expression.endsWith(".goto") || expression.includes("open")) return "browser_navigation";
       if (expression.includes("redirect") || url.includes("accounts.") || url.includes("oauth")) return "oauth_identity";
     }
+  }
+  const declaration = node.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+  if (declaration) {
+    const name = declaration.getName();
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (new RegExp(`(?:page\\.)?goto\\(\\s*${escaped}\\s*\\)`).test(sourceText)) return "browser_navigation";
+    if (new RegExp(`(?:fetch|axios(?:\\.\\w+)?)\\(\\s*${escaped}\\s*[,)]`).test(sourceText)) return url.startsWith("ws") ? "websocket_api" : "http_request";
+    if (new RegExp(`(?:redirect|location\\.assign)\\(\\s*${escaped}\\s*\\)`).test(sourceText)) return "oauth_identity";
   }
   return url.startsWith("ws") ? "websocket_api" : "unknown_url";
 }

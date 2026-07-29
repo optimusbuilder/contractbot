@@ -15,4 +15,13 @@ describe("buildIntegrationEvidence", () => {
 
     expect(evidence.map((item) => item.kind)).toEqual(expect.arrayContaining(["sdk_import", "environment_variable", "http_request", "browser_navigation", "static_asset"]));
   });
+
+  it("traces URL variables to their immediate request or navigation call site", async () => {
+    await mkdir(join(DIR, "src"), { recursive: true });
+    await writeFile(join(DIR, "src", "routes.ts"), 'const apiUrl = "https://api.example.dev/v1"; fetch(apiUrl); const listingUrl = "https://example.org/listings"; page.goto(listingUrl);');
+    const evidence = await buildIntegrationEvidence(DIR);
+
+    expect(evidence.find((item) => item.value.includes("api.example.dev"))?.kind).toBe("http_request");
+    expect(evidence.find((item) => item.value.includes("example.org"))?.kind).toBe("browser_navigation");
+  });
 });

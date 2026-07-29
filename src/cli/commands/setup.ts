@@ -12,6 +12,8 @@ import {
 import { resolveApiContract } from "../../resolver/index.js";
 import { writeGithubAction } from "../../output/github-action.js";
 import { logger } from "../../logger.js";
+import { buildCachedIntegrationEvidence } from "../../investigator/index.js";
+import type { IntegrationEvidence } from "../../investigator/index.js";
 
 interface SetupOptions {
   dir: string;
@@ -52,7 +54,8 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
     try {
       const result = await detectApis(projectDir);
-      candidates = result.candidates;
+      const evidence = await buildCachedIntegrationEvidence(projectDir);
+      candidates = result.candidates.filter((candidate) => isSupportedByEvidence(candidate, evidence));
       spinner?.succeed(
         `Found ${candidates.length} API dependenc${candidates.length !== 1 ? "ies" : "y"}`,
       );
@@ -149,6 +152,19 @@ export async function setupCommand(options: SetupOptions): Promise<void> {
 
   await ensureActionIfReady(projectDir, config, true);
   printNextSteps(configPath);
+}
+
+export function isSupportedByEvidence(candidate: ApiCandidate, evidence: IntegrationEvidence[]): boolean {
+  return evidence.some((item) => {
+    if (item.kind === "sdk_import" && candidate.packages.includes(item.value)) return true;
+    if (item.kind !== "http_request" && item.kind !== "websocket_api") return false;
+    try {
+      const host = new URL(item.value).hostname;
+      return candidate.hosts.some((base) => host === new URL(base).hostname || host.endsWith(`.${new URL(base).hostname}`));
+    } catch {
+      return false;
+    }
+  });
 }
 
 async function ensureActionIfReady(

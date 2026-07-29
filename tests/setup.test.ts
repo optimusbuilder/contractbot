@@ -5,6 +5,7 @@ import { join } from "path";
 import { setupCommand } from "../src/cli/commands/setup.js";
 import { initCommand } from "../src/cli/commands/init.js";
 import { logger } from "../src/logger.js";
+import { isSupportedByEvidence } from "../src/cli/commands/setup.js";
 
 const TEST_DIR = join(process.cwd(), ".test-setup-tmp");
 
@@ -39,6 +40,8 @@ describe("setupCommand", () => {
   });
 
   it("detects stripe from package.json and resolves", async () => {
+    await mkdir(join(TEST_DIR, "src"), { recursive: true });
+    await writeFile(join(TEST_DIR, "src", "payments.ts"), 'import Stripe from "stripe";\nnew Stripe("test");', "utf-8");
     await setupCommand({ dir: TEST_DIR });
 
     const yaml = await readFile(join(TEST_DIR, ".contractbot.yml"), "utf-8");
@@ -56,5 +59,21 @@ describe("initCommand", () => {
     const yaml = await readFile(join(TEST_DIR, ".contractbot.yml"), "utf-8");
     expect(yaml).not.toContain("petstore");
     expect(yaml).not.toContain("example-api");
+  });
+});
+
+describe("setup evidence admission", () => {
+  it("does not admit an env-only provider without an SDK or API call", () => {
+    expect(isSupportedByEvidence(
+      { name: "openai", hosts: ["https://api.openai.com"], packages: ["openai"], evidence: [], confidence: "low", scanPaths: [], needsResolve: false },
+      [{ kind: "environment_variable", value: "OPENAI_API_KEY", file: "src/env.ts", line: 1, context: "process.env.OPENAI_API_KEY" }],
+    )).toBe(false);
+  });
+
+  it("admits a provider with a matching HTTP request", () => {
+    expect(isSupportedByEvidence(
+      { name: "elevenlabs", hosts: ["https://api.elevenlabs.io"], packages: [], evidence: [], confidence: "high", scanPaths: [], needsResolve: false },
+      [{ kind: "http_request", value: "https://api.elevenlabs.io/v1/voices", file: "src/voice.ts", line: 1, context: "fetch(...)" }],
+    )).toBe(true);
   });
 });

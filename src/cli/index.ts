@@ -12,6 +12,7 @@ import { suggestCommand } from "./commands/suggest.js";
 import { showCommand } from "./commands/show.js";
 import { ignoreCommand } from "./commands/ignore.js";
 import { discoverCommand } from "./commands/discover.js";
+import { investigateCommand } from "./commands/investigate.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -85,6 +86,12 @@ program
       failOn: "none",
     }),
   );
+
+program
+  .command("investigate <api>")
+  .description("Use AI to assess a confirmed pending change-set against local usage evidence")
+  .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
+  .action(investigateCommand);
 
 program
   .command("discover")

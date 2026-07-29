@@ -25,7 +25,7 @@ export function parseEvidenceQueries(response: string, knownValues: Set<string>)
   try {
     const value = JSON.parse(match[0]) as { queries?: unknown };
     if (!Array.isArray(value.queries)) return [];
-    const kinds = new Set<EvidenceKind>(["sdk_import", "environment_variable", "http_request", "websocket_api", "browser_navigation", "static_asset", "oauth_identity", "unknown_url"]);
+    const kinds = new Set<EvidenceKind>(["sdk_import", "sdk_construction", "service_call", "environment_variable", "http_request", "websocket_api", "browser_navigation", "static_asset", "oauth_identity", "unknown_url"]);
     return value.queries.filter((item): item is EvidenceQuery => {
       if (!item || typeof item !== "object") return false;
       const query = item as Partial<EvidenceQuery>;

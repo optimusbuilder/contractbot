@@ -2,7 +2,7 @@ import { glob } from "glob";
 import { Project, SyntaxKind, Node } from "ts-morph";
 import { readFile } from "fs/promises";
 
-export type EvidenceKind = "sdk_import" | "environment_variable" | "http_request" | "websocket_api" | "browser_navigation" | "static_asset" | "oauth_identity" | "unknown_url";
+export type EvidenceKind = "sdk_import" | "sdk_construction" | "service_call" | "environment_variable" | "http_request" | "websocket_api" | "browser_navigation" | "static_asset" | "oauth_identity" | "unknown_url";
 
 export interface IntegrationEvidence {
   kind: EvidenceKind;
@@ -47,6 +47,7 @@ export async function buildIntegrationEvidence(projectDir: string, filePaths?: s
       if (!match) continue;
       evidence.push({ kind: classifyUrlContext(node, match[0], sourceFile.getText()), value: match[0], file: sourceFile.getFilePath(), line: node.getStartLineNumber(), context: nearestContext(node) });
     }
+    evidence.push(...extractSdkUsage(sourceFile.getFilePath(), sourceFile.getText(), false));
   }
   for (const file of polyglotFiles) evidence.push(...await buildPolyglotEvidence(file));
   return deduplicate(evidence);
@@ -71,6 +72,34 @@ async function buildPolyglotEvidence(file: string): Promise<IntegrationEvidence[
     const url = line.match(URL)?.[0];
     if (url) evidence.push({ kind: classifyPolyglotUrl(line, url, isPython), value: url, file, line: lineNumber, context: line.trim().slice(0, 400) });
   });
+  evidence.push(...extractSdkUsage(file, text, isPython));
+  return evidence;
+}
+
+function extractSdkUsage(file: string, text: string, isPython: boolean): IntegrationEvidence[] {
+  const patterns: Array<[RegExp, EvidenceKind, string]> = [
+    [/\b(?:Async)?OpenAI\s*\(/, "sdk_construction", "openai"],
+    [/\bAnthropic\s*\(/, "sdk_construction", "anthropic"],
+    [/\bPinecone\s*\(/, "sdk_construction", "pinecone"],
+    [/\b(?:DeepgramClient|Deepgram)\s*\(/, "sdk_construction", "deepgram"],
+    [/\bElevenLabs\s*\(/, "sdk_construction", "elevenlabs"],
+    [/\bFirebase\.initializeApp\s*\(/, "service_call", "firebase"],
+    [/\bFirebaseFirestore\.instance\b/, "service_call", "firestore"],
+    [/\bFirebaseAuth\.instance\b/, "service_call", "firebase-auth"],
+  ];
+  const evidence: IntegrationEvidence[] = [];
+  for (const [pattern, kind, provider] of patterns) {
+    const matcher = new RegExp(pattern.source, "g");
+    let match: RegExpExecArray | null;
+    while ((match = matcher.exec(text)) !== null) {
+      const line = text.slice(0, match.index).split("\n").length;
+      const context = text.split("\n")[line - 1]?.trim() ?? match[0];
+      // Dart and Python share most SDK idioms; JS construction evidence is
+      // useful too, while imports alone remain lower confidence.
+      if (!isPython && file.endsWith(".dart") === false && kind === "service_call" && provider.startsWith("firebase")) continue;
+      evidence.push({ kind, value: provider, file, line, context: context.slice(0, 400) });
+    }
+  }
   return evidence;
 }
 

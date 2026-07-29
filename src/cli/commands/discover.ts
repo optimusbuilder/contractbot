@@ -79,7 +79,7 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
 }
 
 function isPriorityIntegrationEvidence(item: { kind: string; value: string }): boolean {
-  if (item.kind === "http_request" || item.kind === "websocket_api") return true;
+  if (item.kind === "http_request" || item.kind === "websocket_api" || item.kind === "sdk_construction" || item.kind === "service_call") return true;
   if (item.kind === "environment_variable") return /(?:API_KEY|ACCESS_KEY|SECRET|TOKEN|CLIENT_ID|PROJECT_ID|URI)$/.test(item.value);
   if (item.kind === "sdk_import") return /(^@aws-sdk\/|sdk|client|api|langchain|google|openai|anthropic|browserbase|mongodb|mongoose|langsmith)/i.test(item.value);
   return false;
@@ -125,7 +125,7 @@ export function selectAgentClusters<T extends { kind: string; value: string; fil
 }
 
 function clusterScore(cluster: Array<{ kind: string }>): number {
-  const hasRequest = cluster.some((item) => item.kind === "http_request" || item.kind === "websocket_api");
+  const hasRequest = cluster.some((item) => item.kind === "http_request" || item.kind === "websocket_api" || item.kind === "sdk_construction" || item.kind === "service_call");
   const sdkCount = cluster.filter((item) => item.kind === "sdk_import").length;
   const hasEnv = cluster.some((item) => item.kind === "environment_variable");
   return (hasRequest ? 10 : 0) + Math.min(sdkCount, 2) * 6 + (hasEnv ? 1 : 0);

@@ -5,8 +5,9 @@ import { findCatalogByEnvVar, findCatalogByHost, findCatalogByPackage } from "..
 import { createProvider } from "../../providers/index.js";
 import { DEFAULT_CONFIG } from "../../config/schema.js";
 import { loadConfig } from "../../config/loader.js";
+import { buildIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
 
-interface DiscoverOptions { dir: string; config?: string; ai?: boolean }
+interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean }
 
 interface AiSuggestion {
   name: string;
@@ -18,7 +19,7 @@ interface AiSuggestion {
 export async function discoverCommand(options: DiscoverOptions): Promise<void> {
   const projectDir = resolve(options.dir);
   const evidence = await collectDiscoveryEvidence(projectDir);
-  if (!options.ai) {
+  if (!options.ai && !options.agent) {
     console.log(JSON.stringify(evidence, null, 2));
     return;
   }
@@ -26,6 +27,10 @@ export async function discoverCommand(options: DiscoverOptions): Promise<void> {
   const configPath = options.config ?? join(projectDir, ".contractbot.yml");
   const config = existsSync(configPath) ? await loadConfig(configPath) : DEFAULT_CONFIG;
   const provider = createProvider(config.ai);
+  if (options.agent) {
+    await runAgenticDiscovery(projectDir, provider);
+    return;
+  }
   const deterministic = await detectApis(projectDir);
   const deterministicNames = new Set(deterministic.candidates.map((candidate) => candidate.name.toLowerCase()));
   const unresolved = deterministic.candidates
@@ -41,6 +46,47 @@ export async function discoverCommand(options: DiscoverOptions): Promise<void> {
   const response = await provider.generate(prompt, "You are a conservative API dependency analyst. Suggestions require human review and must cite supplied evidence.");
   const suggestions = filterAiSuggestions(response, deterministicNames, allowedEvidence);
   console.log(JSON.stringify({ suggestions, rejectedSuggestionCount: countSuggestions(response) - suggestions.length }, null, 2));
+}
+
+async function runAgenticDiscovery(projectDir: string, provider: ReturnType<typeof createProvider>): Promise<void> {
+  const evidence = await buildIntegrationEvidence(projectDir);
+  const index = evidence.map(({ kind, value, file, line }) => ({ kind, value, file, line }));
+  const knownValues = new Set(evidence.map((item) => item.value));
+  const plan = await provider.generate(
+    `You are planning a bounded repository investigation for external integrations. Return JSON only: {"queries":[{"term":"exact value from index","kind":"optional evidence kind"}]}. Request at most 8 values that most help distinguish real external API integrations from navigation, assets, tests, or frameworks.\n\nEvidence index: ${JSON.stringify(index)}`,
+    "You may query only listed evidence values. Do not infer providers yet.",
+  );
+  const queries = parseEvidenceQueries(plan, knownValues);
+  const selected = queries.flatMap((query) => queryIntegrationEvidence(evidence, query));
+  const response = await provider.generate(
+    `Classify external integrations from cited evidence. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify providers supported by evidence. Do not return frameworks, package names, env-var names, or code changes.\n\nSelected evidence: ${JSON.stringify(selected)}`,
+    "You are a conservative external integration investigator. Cite only supplied evidence.",
+  );
+  console.log(JSON.stringify(validateAgentCandidates(response, selected), null, 2));
+}
+
+export function validateAgentCandidates(response: string, evidence: Array<{ file: string; line: number; kind: string; value: string }>): { candidates: unknown[] } {
+  const match = response.match(/\{[\s\S]*\}/);
+  if (!match) return { candidates: [] };
+  try {
+    const value = JSON.parse(match[0]) as { candidates?: unknown };
+    if (!Array.isArray(value.candidates)) return { candidates: [] };
+    const locations = new Set(evidence.map((item) => `${item.file}:${item.line}:${item.kind}:${item.value}`));
+    const candidates = value.candidates.filter((candidate) => {
+      if (!candidate || typeof candidate !== "object") return false;
+      const item = candidate as { provider?: unknown; classification?: unknown; confidence?: unknown; evidence?: unknown; suggestedContractKind?: unknown; sourceConfidence?: unknown };
+      if (typeof item.provider !== "string" || !/^[a-z][a-z0-9-]*$/.test(item.provider) || !Array.isArray(item.evidence) || item.evidence.length === 0) return false;
+      if (!["external_api", "sdk_client", "websocket_api", "oauth_identity", "browser_navigation", "static_asset", "documentation", "internal_service", "test_fixture", "unknown"].includes(item.classification as string)) return false;
+      if (!["high", "medium", "low"].includes(item.confidence as string) || !["high", "medium", "low"].includes(item.sourceConfidence as string)) return false;
+      if (!["openapi", "sdk_package", "changelog", "unknown"].includes(item.suggestedContractKind as string)) return false;
+      return item.evidence.every((citation) => {
+        if (!citation || typeof citation !== "object") return false;
+        const cited = citation as { file?: string; line?: number; kind?: string; value?: string };
+        return locations.has(`${cited.file}:${cited.line}:${cited.kind}:${cited.value}`);
+      });
+    });
+    return { candidates };
+  } catch { return { candidates: [] }; }
 }
 
 export function filterAiSuggestions(

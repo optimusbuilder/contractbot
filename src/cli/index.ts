@@ -99,6 +99,7 @@ program
   .option("-d, --dir <path>", "Project directory to inspect", ".")
   .option("-c, --config <path>", "Path to config file")
   .option("--ai", "Ask the configured LLM to interpret identifier-only evidence", false)
+  .option("--agent", "Run an opt-in bounded AI investigation over cited call-site evidence", false)
   .action(discoverCommand);
 
 program

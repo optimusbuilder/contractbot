@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { filterAiSuggestions } from "../src/cli/commands/discover.js";
+import { filterAiSuggestions, validateAgentCandidates } from "../src/cli/commands/discover.js";
 
 describe("filterAiSuggestions", () => {
   it("accepts evidence-backed canonical providers and rejects raw identifiers", () => {
@@ -14,5 +14,16 @@ describe("filterAiSuggestions", () => {
     expect(suggestions).toEqual([
       { name: "vitallens", confidence: "high", evidence: ["api.vitallens.com", "VITALLENS_API_KEY"], suggestedType: "unknown" },
     ]);
+  });
+});
+
+describe("validateAgentCandidates", () => {
+  it("retains only candidates with exact evidence citations", () => {
+    const response = JSON.stringify({ candidates: [
+      { provider: "browserbase", classification: "sdk_client", confidence: "high", evidence: [{ file: "app/scout.ts", line: 1, kind: "sdk_import", value: "@browserbasehq/sdk" }], suggestedContractKind: "sdk_package", sourceConfidence: "high" },
+      { provider: "invented", classification: "external_api", confidence: "high", evidence: [{ file: "missing.ts", line: 1, kind: "sdk_import", value: "missing" }], suggestedContractKind: "unknown", sourceConfidence: "high" },
+    ] });
+    const result = validateAgentCandidates(response, [{ file: "app/scout.ts", line: 1, kind: "sdk_import", value: "@browserbasehq/sdk" }]);
+    expect(result.candidates).toHaveLength(1);
   });
 });

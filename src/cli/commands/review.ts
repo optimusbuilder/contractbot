@@ -3,8 +3,11 @@ import { resolve } from "path";
 import { loadDiscoveryReview } from "../../investigator/index.js";
 import { loadConfig, saveConfig } from "../../config/loader.js";
 import { ApiEntry, DEFAULT_CONFIG } from "../../config/schema.js";
+import { createProvider } from "../../providers/index.js";
+import { findCatalogByName } from "../../detector/registry.js";
+import { parseSourceRecommendation } from "../../investigator/index.js";
 
-interface ReviewOptions { dir: string; config?: string; contract?: string; source?: string; package?: string }
+interface ReviewOptions { dir: string; config?: string; contract?: string; source?: string; package?: string; ai?: boolean }
 
 export async function reviewCommand(action: string | undefined, provider: string | undefined, options: ReviewOptions): Promise<void> {
   const dir = resolve(options.dir);
@@ -23,6 +26,31 @@ export async function reviewCommand(action: string | undefined, provider: string
     throw new Error(`${provider} is not in the current agent review queue.`);
   }
 
+  if (action === "source") {
+    const catalog = findCatalogByName(normalized);
+    if (catalog?.contract) {
+      const source = catalog.contract.type === "openapi"
+        ? catalog.contract.url
+        : catalog.contract.type === "sdk_package"
+          ? catalog.contract.package
+          : catalog.contract.type === "changelog"
+            ? catalog.contract.sources[0]?.url
+            : undefined;
+      console.log(JSON.stringify({ contract: catalog.contract.type, source, trust: "catalog", rationale: "Official source from the built-in provider catalog." }, null, 2));
+      return;
+    }
+    if (!options.ai) throw new Error("No catalog source. Re-run with --ai for an untrusted source recommendation.");
+    const candidate = review.candidates.find((item) => item.provider === normalized);
+    const provider = createProvider(config.ai);
+    const response = await provider.generate(
+      `Suggest a contract source for this reviewed external integration. Return JSON only: {"contract":"openapi|sdk_package|changelog|unknown","source":"official URL or package if known","rationale":"cite only supplied evidence and state uncertainty"}. Do not claim a source is verified.\n\nProvider: ${normalized}\nEvidence: ${JSON.stringify(candidate)}`,
+      "You are a conservative contract-source researcher. Every result requires human verification.",
+    );
+    const recommendation = parseSourceRecommendation(response);
+    console.log(JSON.stringify(recommendation ?? { contract: "unknown", trust: "ai_candidate", rationale: "No valid structured source recommendation returned." }, null, 2));
+    return;
+  }
+
   if (action === "ignore" || action === "internal") {
     config.apis = config.apis.filter((api) => api.name.toLowerCase() !== normalized);
     const key = action === "ignore" ? "ignore" : "internal";
@@ -34,7 +62,7 @@ export async function reviewCommand(action: string | undefined, provider: string
     return;
   }
 
-  if (action !== "add") throw new Error("Review actions: add, ignore, internal");
+  if (action !== "add") throw new Error("Review actions: source, add, ignore, internal");
   if (!options.contract || !["openapi", "sdk_package", "changelog"].includes(options.contract)) {
     throw new Error("review add requires --contract openapi|sdk_package|changelog");
   }

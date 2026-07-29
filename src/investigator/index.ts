@@ -6,4 +6,6 @@ export type { EvidenceQuery } from "./query.js";
 export { normalizeProviderFromEvidence } from "./normalize.js";
 export { buildProviderEvidenceClusters } from "./clusters.js";
 export type { ProviderEvidenceCluster } from "./clusters.js";
+export { parseSourceRecommendation } from "./source.js";
+export type { SourceRecommendation } from "./source.js";
 export { saveDiscoveryReview, loadDiscoveryReview } from "./review.js";

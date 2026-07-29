@@ -14,6 +14,7 @@ import { ignoreCommand } from "./commands/ignore.js";
 import { discoverCommand } from "./commands/discover.js";
 import { investigateCommand } from "./commands/investigate.js";
 import { reviewCommand } from "./commands/review.js";
+import { scaffoldCommand } from "./commands/scaffold.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
@@ -99,6 +100,14 @@ program
   .option("--ai", "Use the configured LLM for an untrusted source recommendation")
   .option("--diagnostics", "Show agent cluster selection and validation diagnostics")
   .action(reviewCommand);
+
+program
+  .command("scaffold <api>")
+  .description("Draft a review-only AI verification scaffold for an approved provider")
+  .option("-c, --config <path>", "Path to config file", ".contractbot.yml")
+  .option("-d, --dir <path>", "Project directory", ".")
+  .option("--refresh", "Rebuild the local evidence index first", false)
+  .action(scaffoldCommand);
 
 program
   .command("investigate <api>")

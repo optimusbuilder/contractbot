@@ -52,7 +52,9 @@ export async function discoverCommand(options: DiscoverOptions): Promise<void> {
 
 async function runAgenticDiscovery(projectDir: string, provider: ReturnType<typeof createProvider>, refresh = false): Promise<void> {
   const evidence = await buildCachedIntegrationEvidence(projectDir, refresh);
-  const index = evidence.map(({ kind, value, file, line }) => ({ kind, value, file, line }));
+  const priorityIndex = evidence.filter(isPriorityIntegrationEvidence).map(({ kind, value, file, line }) => ({ kind, value, file, line }));
+  const nonPriorityIndex = evidence.filter((item) => !isPriorityIntegrationEvidence(item)).map(({ kind, value, file, line }) => ({ kind, value, file, line }));
+  const index = [...priorityIndex, ...nonPriorityIndex].slice(0, 400);
   const knownValues = new Set(evidence.map((item) => item.value));
   const plan = await provider.generate(
     `You are planning a bounded repository investigation for external integrations. Return JSON only: {"queries":[{"term":"exact value from index","kind":"optional evidence kind"}]}. Request at most 8 values that most help distinguish real external API integrations from navigation, assets, tests, or frameworks.\n\nEvidence index: ${JSON.stringify(index)}`,

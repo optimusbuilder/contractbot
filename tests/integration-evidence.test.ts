@@ -24,4 +24,15 @@ describe("buildIntegrationEvidence", () => {
     expect(evidence.find((item) => item.value.includes("api.example.dev"))?.kind).toBe("http_request");
     expect(evidence.find((item) => item.value.includes("example.org"))?.kind).toBe("browser_navigation");
   });
+
+  it("extracts cited Python and Dart SDK, env, and HTTP evidence", async () => {
+    await mkdir(join(DIR, "backend"), { recursive: true });
+    await mkdir(join(DIR, "mobile"), { recursive: true });
+    await writeFile(join(DIR, "backend", "client.py"), 'import openai\nimport os\nkey = os.getenv("OPENAI_API_KEY")\nrequests.get("https://api.openai.com/v1/models")');
+    await writeFile(join(DIR, "mobile", "client.dart"), "import 'package:firebase_core/firebase_core.dart';\nfinal key = Platform.environment['FIREBASE_API_KEY'];\nhttp.get(Uri.parse('https://firestore.googleapis.com/v1'));");
+    const evidence = await buildIntegrationEvidence(DIR);
+
+    expect(evidence.map((item) => item.value)).toEqual(expect.arrayContaining(["openai", "OPENAI_API_KEY", "https://api.openai.com/v1/models", "package:firebase_core/firebase_core.dart", "FIREBASE_API_KEY", "https://firestore.googleapis.com/v1"]));
+    expect(evidence.filter((item) => item.kind === "http_request")).toHaveLength(2);
+  });
 });

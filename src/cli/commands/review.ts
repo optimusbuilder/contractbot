@@ -1,7 +1,8 @@
+import { existsSync } from "fs";
 import { resolve } from "path";
 import { loadDiscoveryReview } from "../../investigator/index.js";
 import { loadConfig, saveConfig } from "../../config/loader.js";
-import { ApiEntry } from "../../config/schema.js";
+import { ApiEntry, DEFAULT_CONFIG } from "../../config/schema.js";
 
 interface ReviewOptions { dir: string; config?: string; contract?: string; source?: string; package?: string }
 
@@ -15,7 +16,7 @@ export async function reviewCommand(action: string | undefined, provider: string
   }
   if (!provider) throw new Error(`review ${action} requires a provider name`);
   const configPath = options.config ?? `${dir}/.contractbot.yml`;
-  const config = await loadConfig(configPath);
+  const config = existsSync(configPath) ? await loadConfig(configPath) : DEFAULT_CONFIG;
   const normalized = provider.toLowerCase();
   const review = await loadDiscoveryReview(dir) as { candidates?: Array<{ provider?: string }> } | null;
   if (!review?.candidates?.some((candidate) => candidate.provider === normalized)) {

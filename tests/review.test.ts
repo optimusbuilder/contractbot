@@ -37,4 +37,13 @@ describe("discovery review queue", () => {
 
     expect((await loadConfig(join(DIR, ".contractbot.yml"))).discovery?.internal).toContain("internal-gateway");
   });
+
+  it("initializes configuration when an explicit review decision is made first", async () => {
+    await mkdir(DIR, { recursive: true });
+    await saveDiscoveryReview(DIR, [{ provider: "first-provider" }]);
+
+    await reviewCommand("add", "first-provider", { dir: DIR, contract: "sdk_package", source: "first-provider-sdk" });
+
+    expect((await loadConfig(join(DIR, ".contractbot.yml"))).apis[0]?.name).toBe("first-provider");
+  });
 });

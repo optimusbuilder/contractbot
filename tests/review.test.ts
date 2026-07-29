@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { existsSync } from "fs";
 import { mkdir, rm, writeFile } from "fs/promises";
 import { join } from "path";
-import { loadDiscoveryReview, saveDiscoveryReview } from "../src/investigator/index.js";
+import { loadDiscoveryDiagnostics, loadDiscoveryReview, saveDiscoveryDiagnostics, saveDiscoveryReview } from "../src/investigator/index.js";
 import { reviewCommand } from "../src/cli/commands/review.js";
 import { loadConfig } from "../src/config/loader.js";
 
@@ -15,6 +15,12 @@ describe("discovery review queue", () => {
     const path = await saveDiscoveryReview(DIR, [{ provider: "browserbase" }]);
     expect(path).toContain(".contractbot/reviews/discovery.json");
     expect(await loadDiscoveryReview(DIR)).toMatchObject({ candidates: [{ provider: "browserbase" }] });
+  });
+
+  it("persists discovery diagnostics separately from review findings", async () => {
+    await mkdir(DIR, { recursive: true });
+    await saveDiscoveryDiagnostics(DIR, [{ providerSeed: "gemini", validationStatus: "rejected_or_empty" }]);
+    expect(await loadDiscoveryDiagnostics(DIR)).toMatchObject({ diagnostics: [{ providerSeed: "gemini" }] });
   });
 
   it("requires a manual source before adding a reviewed provider", async () => {

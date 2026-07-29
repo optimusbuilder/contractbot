@@ -97,6 +97,7 @@ program
   .option("--source <value>", "Approved OpenAPI/changelog URL or SDK package for review add")
   .option("--package <name>", "SDK package name when it differs from --source")
   .option("--ai", "Use the configured LLM for an untrusted source recommendation")
+  .option("--diagnostics", "Show agent cluster selection and validation diagnostics")
   .action(reviewCommand);
 
 program

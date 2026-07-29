@@ -1,20 +1,20 @@
 import { existsSync } from "fs";
 import { resolve } from "path";
-import { loadDiscoveryReview } from "../../investigator/index.js";
+import { loadDiscoveryDiagnostics, loadDiscoveryReview } from "../../investigator/index.js";
 import { loadConfig, saveConfig } from "../../config/loader.js";
 import { ApiEntry, DEFAULT_CONFIG } from "../../config/schema.js";
 import { createProvider } from "../../providers/index.js";
 import { findCatalogByName } from "../../detector/registry.js";
 import { parseSourceRecommendation } from "../../investigator/index.js";
 
-interface ReviewOptions { dir: string; config?: string; contract?: string; source?: string; package?: string; ai?: boolean }
+interface ReviewOptions { dir: string; config?: string; contract?: string; source?: string; package?: string; ai?: boolean; diagnostics?: boolean }
 
 export async function reviewCommand(action: string | undefined, provider: string | undefined, options: ReviewOptions): Promise<void> {
   const dir = resolve(options.dir);
   if (!action) {
-    const review = await loadDiscoveryReview(dir);
-    if (!review) throw new Error("No agent discovery review queue found. Run contractbot discover --agent first.");
-    console.log(JSON.stringify(review, null, 2));
+    const output = options.diagnostics ? await loadDiscoveryDiagnostics(dir) : await loadDiscoveryReview(dir);
+    if (!output) throw new Error(`No agent discovery ${options.diagnostics ? "diagnostics" : "review queue"} found. Run contractbot discover --agent first.`);
+    console.log(JSON.stringify(output, null, 2));
     return;
   }
   if (!provider) throw new Error(`review ${action} requires a provider name`);

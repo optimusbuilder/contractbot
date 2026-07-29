@@ -9,3 +9,4 @@ export type { ProviderEvidenceCluster } from "./clusters.js";
 export { parseSourceRecommendation } from "./source.js";
 export type { SourceRecommendation } from "./source.js";
 export { saveDiscoveryReview, loadDiscoveryReview } from "./review.js";
+export { saveDiscoveryDiagnostics, loadDiscoveryDiagnostics } from "./review.js";

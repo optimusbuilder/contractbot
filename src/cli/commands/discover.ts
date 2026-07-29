@@ -8,6 +8,7 @@ import { loadConfig } from "../../config/loader.js";
 import { buildCachedIntegrationEvidence, parseEvidenceQueries, queryIntegrationEvidence } from "../../investigator/index.js";
 import { normalizeProviderFromEvidence } from "../../investigator/index.js";
 import { saveDiscoveryReview } from "../../investigator/index.js";
+import { saveDiscoveryDiagnostics } from "../../investigator/index.js";
 import { buildProviderEvidenceClusters } from "../../investigator/index.js";
 
 interface DiscoverOptions { dir: string; config?: string; ai?: boolean; agent?: boolean; refresh?: boolean }
@@ -69,19 +70,34 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
   const candidates: unknown[] = [];
   const providerClusters = buildProviderEvidenceClusters(selected);
   const selectedClusters = providerClusters.slice(0, 8);
+  const clusterResults: Array<Record<string, unknown>> = [];
   for (const providerCluster of selectedClusters) {
     const cluster = providerCluster.evidence.slice(0, 16);
-    const response = await provider.generate(
-      `Classify this provider evidence cluster. The deterministic seed is "${providerCluster.provider}". Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
-      "You are a conservative external integration investigator. Cite only supplied evidence.",
-    );
-    candidates.push(...validateAgentCandidates(response, cluster).candidates);
+    try {
+      const response = await provider.generate(
+        `Classify this provider evidence cluster. The deterministic seed is "${providerCluster.provider}". Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
+        "You are a conservative external integration investigator. Cite only supplied evidence.",
+      );
+      const validated = validateAgentCandidates(response, cluster).candidates;
+      candidates.push(...validated);
+      clusterResults.push({ providerSeed: providerCluster.provider, evidenceCount: providerCluster.evidence.length, evidenceKinds: [...new Set(cluster.map((item) => item.kind))], selectedForAI: true, aiResponseStatus: response.includes('"candidates"') ? "returned_candidates" : "returned_no_candidate", validationStatus: validated.length > 0 ? "accepted" : "rejected_or_empty" });
+    } catch (error) {
+      clusterResults.push({ providerSeed: providerCluster.provider, evidenceCount: providerCluster.evidence.length, evidenceKinds: [...new Set(cluster.map((item) => item.kind))], selectedForAI: true, aiResponseStatus: "error", validationStatus: error instanceof Error ? error.message : "unknown_error" });
+    }
   }
   const reviewed = deduplicateAgentCandidates(candidates);
   const reviewPath = await saveDiscoveryReview(projectDir, reviewed);
+  const diagnostics: Array<Record<string, unknown>> = providerClusters.map((cluster) => ({ providerSeed: cluster.provider, evidenceCount: cluster.evidence.length, evidenceKinds: [...new Set(cluster.evidence.map((item) => item.kind))], selectedForAI: selectedClusters.includes(cluster), aiResponseStatus: selectedClusters.includes(cluster) ? "pending" : "not_selected", validationStatus: selectedClusters.includes(cluster) ? "pending" : "not_selected" }));
+  for (const diagnostic of diagnostics) {
+    const result = clusterResults.find((item) => item.providerSeed === diagnostic.providerSeed);
+    if (result) Object.assign(diagnostic, result);
+    diagnostic.finalReviewCandidate = reviewed.some((candidate) => (candidate as { provider?: string }).provider === diagnostic.providerSeed);
+  }
+  const diagnosticsPath = await saveDiscoveryDiagnostics(projectDir, diagnostics);
   console.log(JSON.stringify({
     candidates: reviewed,
     reviewPath,
+    diagnosticsPath,
     clusterCoverage: providerClusters.map((cluster) => ({
       provider: cluster.provider,
       selected: selectedClusters.includes(cluster),

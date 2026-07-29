@@ -26,4 +26,11 @@ describe("validateAgentCandidates", () => {
     const result = validateAgentCandidates(response, [{ file: "app/scout.ts", line: 1, kind: "sdk_import", value: "@browserbasehq/sdk" }]);
     expect(result.candidates).toHaveLength(1);
   });
+
+  it("rejects generic SDK classifications without a contract family", () => {
+    const response = JSON.stringify({ candidates: [
+      { provider: "framer-motion", classification: "sdk_client", confidence: "high", evidence: [{ file: "src/app.tsx", line: 1, kind: "sdk_import", value: "framer-motion" }], suggestedContractKind: "unknown", sourceConfidence: "high" },
+    ] });
+    expect(validateAgentCandidates(response, [{ file: "src/app.tsx", line: 1, kind: "sdk_import", value: "framer-motion" }]).candidates).toEqual([]);
+  });
 });

@@ -79,6 +79,9 @@ export function validateAgentCandidates(response: string, evidence: Array<{ file
       if (!["external_api", "sdk_client", "websocket_api", "oauth_identity", "browser_navigation", "static_asset", "documentation", "internal_service", "test_fixture", "unknown"].includes(item.classification as string)) return false;
       if (!["high", "medium", "low"].includes(item.confidence as string) || !["high", "medium", "low"].includes(item.sourceConfidence as string)) return false;
       if (!["openapi", "sdk_package", "changelog", "unknown"].includes(item.suggestedContractKind as string)) return false;
+      // A generic library is not an integration candidate. Hosted SDK clients
+      // must identify a plausible contract family before reaching review.
+      if (item.classification === "sdk_client" && item.suggestedContractKind === "unknown") return false;
       return item.evidence.every((citation) => {
         if (!citation || typeof citation !== "object") return false;
         const cited = citation as { file?: string; line?: number; kind?: string; value?: string };

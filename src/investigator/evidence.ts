@@ -94,6 +94,7 @@ function extractSdkUsage(file: string, text: string, isPython: boolean): Integra
     [/\bPinecone\s*\(/, "sdk_construction", "pinecone"],
     [/\b(?:DeepgramClient|Deepgram)\s*\(/, "sdk_construction", "deepgram"],
     [/\bElevenLabs\s*\(/, "sdk_construction", "elevenlabs"],
+    [/\b(?:GoogleGenerativeAI|GoogleGenAI)\s*\(/, "sdk_construction", "gemini"],
     [/\bFirebase\.initializeApp\s*\(/, "service_call", "firebase"],
     [/\bFirebaseFirestore\.instance\b/, "service_call", "firestore"],
     [/\bFirebaseAuth\.instance\b/, "service_call", "firebase-auth"],

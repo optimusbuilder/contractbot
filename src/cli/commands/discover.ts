@@ -68,7 +68,8 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
   ]);
   const candidates: unknown[] = [];
   const providerClusters = buildProviderEvidenceClusters(selected);
-  for (const providerCluster of providerClusters.slice(0, 8)) {
+  const selectedClusters = providerClusters.slice(0, 8);
+  for (const providerCluster of selectedClusters) {
     const cluster = providerCluster.evidence.slice(0, 16);
     const response = await provider.generate(
       `Classify this provider evidence cluster. The deterministic seed is "${providerCluster.provider}". Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
@@ -78,7 +79,16 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
   }
   const reviewed = deduplicateAgentCandidates(candidates);
   const reviewPath = await saveDiscoveryReview(projectDir, reviewed);
-  console.log(JSON.stringify({ candidates: reviewed, reviewPath }, null, 2));
+  console.log(JSON.stringify({
+    candidates: reviewed,
+    reviewPath,
+    clusterCoverage: providerClusters.map((cluster) => ({
+      provider: cluster.provider,
+      selected: selectedClusters.includes(cluster),
+      classified: reviewed.some((candidate) => (candidate as { provider?: string }).provider === cluster.provider),
+      evidenceCount: cluster.evidence.length,
+    })),
+  }, null, 2));
 }
 
 function isPriorityIntegrationEvidence(item: { kind: string; value: string }): boolean {

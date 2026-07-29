@@ -37,7 +37,7 @@ function providerFromEvidence(item: IntegrationEvidence): string | null {
     return normalized === item.value ? packageStem(item.value) : normalized;
   }
   if (item.kind === "http_request" || item.kind === "websocket_api") {
-    const catalog = findCatalogByHost(item.value);
+    const catalog = findCatalogByHost(item.value.replace(/^wss?:/, "https:"));
     if (catalog) return catalog.name;
     try { return packageStem(new URL(item.value).hostname); } catch { return null; }
   }

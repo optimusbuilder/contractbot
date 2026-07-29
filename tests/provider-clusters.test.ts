@@ -26,4 +26,11 @@ describe("provider evidence clusters", () => {
     ]);
     expect(clusters[0]?.provider).toBe("pinecone");
   });
+
+  it("normalizes WebSocket provider hosts through the catalog", () => {
+    const clusters = buildProviderEvidenceClusters([
+      { kind: "websocket_api", value: "wss://generativelanguage.googleapis.com/ws/", file: "backend/relay.py", line: 1, context: "connect" },
+    ]);
+    expect(clusters[0]?.provider).toBe("gemini");
+  });
 });

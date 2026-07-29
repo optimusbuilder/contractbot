@@ -18,11 +18,11 @@ describe("buildIntegrationEvidence", () => {
 
   it("traces URL variables to their immediate request or navigation call site", async () => {
     await mkdir(join(DIR, "src"), { recursive: true });
-    await writeFile(join(DIR, "src", "routes.ts"), 'const apiUrl = "https://api.example.dev/v1"; fetch(apiUrl); const listingUrl = "https://example.org/listings"; page.goto(listingUrl);');
+    await writeFile(join(DIR, "src", "routes.ts"), 'const apiUrl = "https://api.example.dev/v1"; fetch(apiUrl); const listingUrl = "https://listings.vendor.dev/listings"; page.goto(listingUrl);');
     const evidence = await buildIntegrationEvidence(DIR);
 
     expect(evidence.find((item) => item.value.includes("api.example.dev"))?.kind).toBe("http_request");
-    expect(evidence.find((item) => item.value.includes("example.org"))?.kind).toBe("browser_navigation");
+    expect(evidence.find((item) => item.value.includes("listings.vendor.dev"))?.kind).toBe("browser_navigation");
   });
 
   it("extracts cited Python and Dart SDK, env, and HTTP evidence", async () => {
@@ -34,5 +34,13 @@ describe("buildIntegrationEvidence", () => {
 
     expect(evidence.map((item) => item.value)).toEqual(expect.arrayContaining(["openai", "pinecone", "OPENAI_API_KEY", "https://api.openai.com/v1/models", "package:firebase_core/firebase_core.dart", "firebase", "firestore", "FIREBASE_API_KEY", "https://firestore.googleapis.com/v1"]));
     expect(evidence.filter((item) => item.kind === "http_request")).toHaveLength(2);
+  });
+
+  it("excludes metadata and local endpoint URLs from agent evidence", async () => {
+    await mkdir(join(DIR, "src"), { recursive: true });
+    await writeFile(join(DIR, "src", "hosts.ts"), 'fetch("http://metadata.google.internal/token"); fetch("https://api.example.dev");');
+    const evidence = await buildIntegrationEvidence(DIR);
+    expect(evidence.map((item) => item.value)).toContain("https://api.example.dev");
+    expect(evidence.map((item) => item.value)).not.toContain("http://metadata.google.internal/token");
   });
 });

@@ -45,6 +45,7 @@ export async function buildIntegrationEvidence(projectDir: string, filePaths?: s
       if (!text) continue;
       const match = text.match(URL);
       if (!match) continue;
+      if (!isActionableUrl(match[0])) continue;
       evidence.push({ kind: classifyUrlContext(node, match[0], sourceFile.getText()), value: match[0], file: sourceFile.getFilePath(), line: node.getStartLineNumber(), context: nearestContext(node) });
     }
     evidence.push(...extractSdkUsage(sourceFile.getFilePath(), sourceFile.getText(), false));
@@ -70,10 +71,20 @@ async function buildPolyglotEvidence(file: string): Promise<IntegrationEvidence[
       : /(?:Platform\.environment|dotenv\.env)\[\s*["']([A-Z][A-Z0-9_]+)["']\s*\]/g;
     for (const match of line.matchAll(envPattern)) evidence.push({ kind: "environment_variable", value: match[1], file, line: lineNumber, context: line.trim() });
     const url = line.match(URL)?.[0];
-    if (url) evidence.push({ kind: classifyPolyglotUrl(line, url, isPython), value: url, file, line: lineNumber, context: line.trim().slice(0, 400) });
+    if (url && isActionableUrl(url)) evidence.push({ kind: classifyPolyglotUrl(line, url, isPython), value: url, file, line: lineNumber, context: line.trim().slice(0, 400) });
   });
   evidence.push(...extractSdkUsage(file, text, isPython));
   return evidence;
+}
+
+function isActionableUrl(value: string): boolean {
+  const normalized = value.toLowerCase();
+  return !/\/\/(?:[^/]*\.)?google\.internal(?:[/:]|$)/.test(normalized) &&
+    !/\/\/[^/]*\.local(?:[/:]|$)/.test(normalized) &&
+    !/\/\/(?:www\.)?example\.(?:com|org)(?:[/:]|$)/.test(normalized) &&
+    !/\/\/www\.w3\.org(?:[/:]|$)/.test(normalized) &&
+    !/\/\/docs\./.test(normalized) &&
+    !/readthedocs\.io/.test(normalized);
 }
 
 function extractSdkUsage(file: string, text: string, isPython: boolean): IntegrationEvidence[] {

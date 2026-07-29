@@ -152,6 +152,7 @@ export interface ContractbotConfig {
   apis: ApiEntry[];
   discovery?: {
     ignore?: string[];
+    internal?: string[];
   };
   ai: AiConfig;
   healing: HealingConfig;
@@ -159,7 +160,7 @@ export interface ContractbotConfig {
 
 export const DEFAULT_CONFIG: ContractbotConfig = {
   apis: [],
-  discovery: { ignore: [] },
+  discovery: { ignore: [], internal: [] },
   ai: {
     provider: "openai",
     model: "gpt-4o-mini",

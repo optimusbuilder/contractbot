@@ -89,9 +89,13 @@ program
   );
 
 program
-  .command("review")
+  .command("review [action] [provider]")
   .description("Show validated AI discovery findings awaiting human review")
   .option("-d, --dir <path>", "Project directory", ".")
+  .option("-c, --config <path>", "Path to config file")
+  .option("--contract <type>", "Approved contract type for review add")
+  .option("--source <value>", "Approved OpenAPI/changelog URL or SDK package for review add")
+  .option("--package <name>", "SDK package name when it differs from --source")
   .action(reviewCommand);
 
 program

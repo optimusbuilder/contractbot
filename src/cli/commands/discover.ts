@@ -64,9 +64,9 @@ async function runAgenticDiscovery(projectDir: string, provider: ReturnType<type
   const selected = deduplicateEvidence([
     ...evidence.filter(isPriorityIntegrationEvidence),
     ...queries.flatMap((query) => queryIntegrationEvidence(evidence, query)),
-  ]).slice(0, 32);
+  ]);
   const candidates: unknown[] = [];
-  for (const cluster of clusterIntegrationEvidence(selected).slice(0, 8)) {
+  for (const cluster of selectAgentClusters(selected, 8)) {
     const response = await provider.generate(
       `Classify external integrations from this one local evidence cluster. Return JSON only: {"candidates":[{"provider":"canonical-provider-slug","classification":"external_api|sdk_client|websocket_api|oauth_identity|browser_navigation|static_asset|documentation|internal_service|test_fixture|unknown","confidence":"high|medium|low","evidence":[{"file":"exact file","line":number,"kind":"exact kind","value":"exact value"}],"suggestedContractKind":"openapi|sdk_package|changelog|unknown","sourceConfidence":"high|medium|low"}]}. Only classify real external integrations. Do not return frameworks, package names, env-var names, navigation, assets, or code changes.\n\nCluster evidence: ${JSON.stringify(cluster)}`,
       "You are a conservative external integration investigator. Cite only supplied evidence.",
@@ -103,6 +103,25 @@ export function clusterIntegrationEvidence<T extends { kind: string; value: stri
     clusters.set(item.file, cluster);
   }
   return [...clusters.values()].sort((a, b) => clusterScore(b) - clusterScore(a));
+}
+
+export function selectAgentClusters<T extends { kind: string; value: string; file: string; line: number }>(evidence: T[], limit: number): T[][] {
+  const clusters = clusterIntegrationEvidence(evidence);
+  const selected: T[][] = [];
+  const used = new Set<T[]>();
+  const languageGroups = [/\.py$/, /\.dart$/, /\.(ts|tsx|js|jsx|mjs|cjs)$/];
+  for (const group of languageGroups) {
+    const cluster = clusters.find((candidate) => group.test(candidate[0]?.file ?? ""));
+    if (cluster) {
+      selected.push(cluster);
+      used.add(cluster);
+    }
+  }
+  for (const cluster of clusters) {
+    if (selected.length >= limit) break;
+    if (!used.has(cluster)) selected.push(cluster);
+  }
+  return selected.slice(0, limit).map((cluster) => cluster.slice(0, 12));
 }
 
 function clusterScore(cluster: Array<{ kind: string }>): number {

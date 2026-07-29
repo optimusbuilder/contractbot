@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clusterIntegrationEvidence, filterAiSuggestions, validateAgentCandidates } from "../src/cli/commands/discover.js";
+import { clusterIntegrationEvidence, filterAiSuggestions, selectAgentClusters, validateAgentCandidates } from "../src/cli/commands/discover.js";
 
 describe("filterAiSuggestions", () => {
   it("accepts evidence-backed canonical providers and rejects raw identifiers", () => {
@@ -51,5 +51,15 @@ describe("clusterIntegrationEvidence", () => {
     ]);
     expect(clusters[0]).toHaveLength(2);
     expect(clusters[1]).toEqual([{ kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 }]);
+  });
+
+  it("reserves cluster coverage for Python and Dart evidence", () => {
+    const clusters = selectAgentClusters([
+      { kind: "sdk_import", value: "openai", file: "backend/client.py", line: 1 },
+      { kind: "sdk_import", value: "firebase", file: "mobile/client.dart", line: 1 },
+      { kind: "sdk_import", value: "react", file: "web/app.tsx", line: 1 },
+      { kind: "http_request", value: "https://api.example.dev", file: "web/route.ts", line: 1 },
+    ], 3);
+    expect(clusters.flat().map((item) => item.file)).toEqual(expect.arrayContaining(["backend/client.py", "mobile/client.dart", "web/route.ts"]));
   });
 });

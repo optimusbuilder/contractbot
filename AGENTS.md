@@ -10,11 +10,12 @@ review contract source -> create baseline -> detect change -> run verification -
 
 1. Treat discovery as a suggestion. Inspect `.contractbot.yml` before creating a baseline.
 2. Treat `contractbot discover --ai` as an untrusted suggestion. It sends only identifiers, but its output must not be written to configuration without human review.
-3. Run `contractbot baseline` only after the user approves the configured contract source.
-4. Run `contractbot ci --fail-on breaking` to create or update a pending change-set.
-5. Read evidence with `contractbot show <api>`.
-6. Run the configured verification command and inspect its output.
-7. Only run `contractbot accept <api>` after the user explicitly approves the new provider contract.
+3. Treat `contractbot discover --agent` as an evidence-backed review queue, not an approval. It may inspect bounded call-site contexts, but no candidate, source, or classification may be written to configuration without human review.
+4. Run `contractbot baseline` only after the user approves the configured contract source.
+5. Run `contractbot ci --fail-on breaking` to create or update a pending change-set.
+6. Read evidence with `contractbot show <api>`.
+7. Run the configured verification command and inspect its output.
+8. Only run `contractbot accept <api>` after the user explicitly approves the new provider contract.
 
 Never run `accept`, `apply`, or `suggest` merely because CI detected a change. `suggest` can send relevant source files to the configured LLM provider and must be explicit user opt-in.
 

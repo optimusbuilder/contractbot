@@ -149,6 +149,14 @@ contractbot discover --dir <project> --ai
 
 AI discovery sends only dependency names, environment-variable names, and hostnames. It does not send source-file contents or secret values, and it never writes `.contractbot.yml`. Treat its output as a review queue: verify each suggested provider and contract source before adding it to configuration or creating a baseline.
 
+For a bounded agent investigation over cited local call-site evidence, opt in explicitly:
+
+```bash
+contractbot discover --dir <project> --agent
+```
+
+The agent first sees an evidence index, requests up to eight exact evidence values, then receives only the matching short call-site contexts. Its final provider classifications are rejected unless every file, line, kind, and value citation matches deterministic evidence. Agent output remains a review queue and never writes configuration.
+
 ## Commands
 
 | Command | Purpose |

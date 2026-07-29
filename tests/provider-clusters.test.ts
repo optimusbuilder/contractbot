@@ -18,4 +18,12 @@ describe("provider evidence clusters", () => {
     ]);
     expect(clusters.map((cluster) => cluster.provider)).toEqual(expect.arrayContaining(["firebase-auth", "firestore"]));
   });
+
+  it("does not let repeated framework imports outweigh a constructed SDK", () => {
+    const clusters = buildProviderEvidenceClusters([
+      ...Array.from({ length: 20 }, (_, line) => ({ kind: "sdk_import" as const, value: "fastapi", file: `plugins/${line}.py`, line: 1, context: "import fastapi" })),
+      { kind: "sdk_construction" as const, value: "pinecone", file: "backend/vector.py", line: 4, context: "Pinecone()" },
+    ]);
+    expect(clusters[0]?.provider).toBe("pinecone");
+  });
 });

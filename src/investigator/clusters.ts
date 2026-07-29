@@ -51,7 +51,7 @@ function packageStem(value: string): string {
 
 function score(evidence: IntegrationEvidence[]): number {
   const kinds = new Set(evidence.map((item) => item.kind));
-  return evidence.length + (kinds.has("http_request") || kinds.has("websocket_api") ? 10 : 0) + (kinds.has("sdk_construction") || kinds.has("service_call") ? 8 : 0) + (kinds.has("sdk_import") ? 4 : 0);
+  return Math.min(evidence.length, 3) + (kinds.has("http_request") || kinds.has("websocket_api") ? 10 : 0) + (kinds.has("sdk_construction") || kinds.has("service_call") ? 8 : 0) + (kinds.has("sdk_import") ? 4 : 0);
 }
 
 function deduplicate(evidence: IntegrationEvidence[]): IntegrationEvidence[] {

@@ -156,6 +156,7 @@ export function validateAgentCandidates(response: string, evidence: Array<{ file
       const item = candidate as { provider?: unknown; classification?: unknown; confidence?: unknown; evidence?: unknown; suggestedContractKind?: unknown; sourceConfidence?: unknown };
       if (typeof item.provider !== "string" || !/^[a-z][a-z0-9-]*$/.test(item.provider) || !Array.isArray(item.evidence) || item.evidence.length === 0) return false;
       if (!["external_api", "sdk_client", "websocket_api", "oauth_identity", "browser_navigation", "static_asset", "documentation", "internal_service", "test_fixture", "unknown"].includes(item.classification as string)) return false;
+      if (item.classification === "unknown" || item.classification === "documentation" || item.classification === "static_asset" || item.classification === "browser_navigation" || item.classification === "test_fixture") return false;
       if (!["high", "medium", "low"].includes(item.confidence as string) || !["high", "medium", "low"].includes(item.sourceConfidence as string)) return false;
       if (!["openapi", "sdk_package", "changelog", "unknown"].includes(item.suggestedContractKind as string)) return false;
       // A generic library is not an integration candidate. Hosted SDK clients

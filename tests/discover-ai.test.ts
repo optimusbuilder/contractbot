@@ -47,6 +47,13 @@ describe("validateAgentCandidates", () => {
     ] });
     expect(validateAgentCandidates(response, [{ file: "scripts/export.py", line: 1, kind: "environment_variable", value: "DEEPGRAM_API_KEY" }]).candidates).toEqual([]);
   });
+
+  it("rejects unknown classifications from the actionable review queue", () => {
+    const response = JSON.stringify({ candidates: [
+      { provider: "fastapi", classification: "unknown", confidence: "low", evidence: [{ file: "backend/main.py", line: 1, kind: "sdk_import", value: "fastapi" }], suggestedContractKind: "unknown", sourceConfidence: "low" },
+    ] });
+    expect(validateAgentCandidates(response, [{ file: "backend/main.py", line: 1, kind: "sdk_import", value: "fastapi" }]).candidates).toEqual([]);
+  });
 });
 
 describe("clusterIntegrationEvidence", () => {

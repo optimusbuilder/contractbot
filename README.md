@@ -1,224 +1,242 @@
-# contractbot
+# Contractbot
 
-Contractbot helps teams review approved OpenAPI contract changes and verify application compatibility before deployment.
+Catch breaking changes in third-party APIs before they break your application.
 
+Contractbot watches an approved OpenAPI contract, compares it with the latest
+provider version, runs your existing verification command when it changes, and
+requires a human to approve the next baseline.
+
+```text
+review source -> baseline -> CI detects change -> verify -> human accepts
 ```
-discover -> review source -> approve baseline -> CI check -> verify -> accept
+
+## Start Here
+
+Run this in the repository that consumes external APIs:
+
+```bash
+npx contractbot setup
 ```
 
-## What It Is
+It creates `.contractbot.yml` and, when every detected contract is resolved,
+`.github/workflows/contractbot.yml`.
 
-Contractbot is a CI-native compatibility check for external APIs. For an approved OpenAPI source, it compares the latest upstream contract to the contract your repository accepted, runs an integration command you define, and saves an auditable pending change-set.
+Review `.contractbot.yml` before continuing. You must confirm that every
+contract URL is provider-owned and that each verification command is safe to
+run in CI.
 
-It is deliberately not an autonomous API repair agent. It never probes live endpoints to infer a contract, silently updates an approved baseline, edits code in CI, opens pull requests, or auto-merges changes.
+```bash
+npx contractbot baseline
+git add .contractbot.yml .contractbot/baselines .github/workflows/contractbot.yml
+git commit -m "chore: monitor external API contracts"
+```
 
-## What Works Today
+That is the initial setup. The committed baseline is the provider contract your
+repository currently accepts.
 
-Contractbot is focused on one dependable workflow: compare a provider's approved OpenAPI source to your committed baseline, then run the integration verification command you own.
+## When An API Changes
 
-It supports:
+CI runs this command every four hours and on pull requests:
 
-- Approved OpenAPI sources and repository-stored baselines.
-- Static diffs for common endpoint, method, parameter, request, and response field changes.
-- Configured integration verification after a confirmed OpenAPI change.
-- Explicit baseline acceptance.
-- Optional manual AI migration suggestions from a confirmed change-set.
-- A source-built GitHub Action that runs without an npm package release.
-- Changelog contracts that flag newly published provider updates for review.
+```bash
+npx contractbot ci --fail-on breaking
+```
 
-Outside the current scope:
+If nothing changed, CI passes. If the provider makes a breaking change:
 
-- Complete OpenAPI compatibility coverage, especially composed, nested, security, enum, and status-code changes.
-- Server-contract detection for APIs without a trustworthy published contract.
-- First-class SDK upgrade verification. SDK version changes are only a signal today.
-- Hosted or npm-distributed workflows.
+1. CI fails and writes `.contractbot/changes/<api>.json`.
+2. Contractbot runs the configured verification command.
+3. Read the pending change:
 
-## Try It From Source
+```bash
+npx contractbot show openai
+```
+
+4. Update your integration and tests if required.
+5. After a human reviews the provider contract and the verification result:
+
+```bash
+npx contractbot accept openai
+git add .contractbot/baselines
+git commit -m "chore: accept OpenAI contract update"
+```
+
+`accept` is deliberately manual. Contractbot never silently replaces an
+approved baseline.
+
+## Configuration
+
+This is a complete minimal example:
+
+```yaml
+apis:
+  - name: openai
+    contract:
+      type: openapi
+      url: https://raw.githubusercontent.com/openai/openai-openapi/master/openapi.yaml
+    scan_paths:
+      - backend/utils/llm/providers.py
+      - backend/utils/llm/clients.py
+    verify:
+      command: cd backend && pytest tests/unit/test_llm_gateway_openai_provider.py -v
+      timeout_ms: 120000
+```
+
+`scan_paths` identify the local integration. `verify.command` is your existing
+test or verification command. It should use a dedicated test account, fixtures,
+and the least-privileged credentials required for CI.
+
+## GitHub Actions
+
+`setup` generates a workflow using `optimusbuilder/contractbot@v0`. Pin a
+production workflow to a reviewed release tag or commit SHA.
+
+The generated schedule is six checks per day:
+
+```yaml
+schedule:
+  - cron: '17 */4 * * *'
+```
+
+Change that cron expression in `.github/workflows/contractbot.yml` to choose
+your own cadence. For example, `'17 6 * * *'` runs once daily at 06:17 UTC.
+More frequent checks can rerun a failing `verify.command`, so keep that command
+idempotent and safe for your selected schedule.
+
+The action installs Contractbot's own runtime. Your repository still needs to
+install dependencies for `verify.command`. For example, add Python setup and
+dependency installation before the Contractbot action in a Python project.
+
+```yaml
+- uses: actions/setup-python@v5
+  with:
+    python-version: "3.12"
+- run: pip install -r backend/requirements.txt
+- uses: optimusbuilder/contractbot@v0
+```
+
+## Credentials And BYOK
+
+Contractbot has no hosted account, key-upload form, or secret storage.
+
+### Provider Keys
+
+Public OpenAPI sources need no Contractbot key. If `verify.command` needs a
+provider key, supply it through your normal environment or CI secret manager.
+Do not put secret values in `.contractbot.yml`.
+
+```bash
+export OPENAI_API_KEY="..."
+npx contractbot ci --fail-on breaking
+```
+
+```yaml
+- uses: optimusbuilder/contractbot@v0
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+Private OpenAPI sources requiring authenticated fetches are not yet supported
+by the core contract-fetching workflow.
+
+### Optional AI Key
+
+The core workflow needs no AI key. AI is only used when someone explicitly runs
+an experimental AI command.
+
+Supported AI backends are OpenAI, Anthropic, Ollama (local, no key), and
+OpenAI-compatible services.
+
+```yaml
+ai:
+  provider: openai
+  model: gpt-4o-mini
+  api_key_env: OPENAI_API_KEY
+```
+
+For an OpenAI-compatible provider, set `provider: openai`, add `base_url`, and
+set `api_key_env` to its key variable. When omitted, Contractbot checks
+`CONTRACTBOT_API_KEY`, `LLM_API_KEY`, then the provider default.
+
+## AI Agent Playbook
+
+Contractbot is designed for coding agents, but agents must not confuse a
+detected change with approval to change application code or replace a baseline.
+
+Put this in your repository's `AGENTS.md`, `CLAUDE.md`, or agent instructions:
+
+```text
+Use Contractbot's trusted workflow:
+review contract source -> baseline -> detect change -> run verification -> human review -> accept
+
+- Treat discovery and all AI output as suggestions.
+- Inspect .contractbot.yml before baseline.
+- Do not run baseline until the user approves the contract source.
+- On a detected change, run: contractbot show <api>.
+- Run the configured verification command and inspect its output.
+- Do not run accept unless the user explicitly approves the new provider contract.
+- Do not run suggest or apply unless the user explicitly opts in. They may send
+  source code to an LLM provider or modify local files.
+- Never make a live provider call merely to infer a contract.
+```
+
+Agents can use structured output for scripting:
+
+```bash
+contractbot --json discover
+contractbot --json ci --fail-on breaking
+```
+
+The repository's own [`AGENTS.md`](AGENTS.md) contains the full agent safety
+policy used to develop Contractbot.
+
+## Optional AI Assistance
+
+These commands are experimental and never run in CI:
+
+- `discover --ai`: identifier-only source suggestions.
+- `discover --agent`: bounded investigation using cited local call-site context.
+- `investigate <api>`: assesses a confirmed pending change against local usage.
+- `scaffold <api>`: creates a review-only verification draft.
+- `suggest <api>`: creates a local migration draft from a pending change.
+- `apply <patch-id>`: applies a reviewed migration draft.
+
+AI output is a review queue, not a decision. `suggest` can send relevant source
+files to the configured LLM, so it always requires explicit opt-in.
+
+## Command Reference
+
+- `setup`: discover integrations, resolve candidates, and write configuration.
+- `baseline`: fetch approved provider contracts into `.contractbot/baselines`.
+- `ci --fail-on breaking`: check contracts and create pending change-sets.
+- `show <api>`: explain a pending change-set.
+- `accept <api>`: manually approve a reviewed contract as the next baseline.
+- `resolve`: resolve an explicitly configured unresolved contract.
+- `ignore <name>`: persistently ignore an irrelevant detected provider.
+- `review`: inspect or make explicit decisions about AI discovery findings.
+
+Run `contractbot --help` for all commands and options.
+
+## Scope
+
+Contractbot currently supports approved OpenAPI sources, stored baselines, and
+static diffs for common endpoint, method, parameter, request, and response-field
+changes. It does not provide complete OpenAPI compatibility coverage, reliable
+monitoring for providers without a trustworthy published contract, or hosted
+workflows.
+
+## Develop From Source
 
 ```bash
 git clone https://github.com/optimusbuilder/contractbot.git
 cd contractbot
 npm install
-npm run build
-
-# Discover candidate dependencies and write a config.
-npm run dev -- setup
-
-# Review .contractbot.yml, then fetch approved OpenAPI baselines.
-npm run dev -- baseline
-
-# Commit the reviewed source and baseline.
-git add .contractbot.yml .contractbot/baselines .github
-git commit -m "chore: baseline external API contracts"
+npm run check
 ```
 
-Discovery is only a suggestion. Review each detected provider, source URL, and scope before creating a baseline. The committed baseline is the trust boundary. Use `contractbot ignore <name>` to persistently remove a false positive from the config.
-
-## GitHub Action
-
-`setup` writes a read-only workflow that uses the source-built action at `optimusbuilder/contractbot@main`. It installs the target project's dependencies, builds Contractbot from the action source, runs `ci --fail-on breaking`, and uploads the report and pending change-sets as artifacts.
-
-Before using it for production enforcement, pin the action reference in `.github/workflows/contractbot.yml` to a reviewed commit or release tag.
-
-## Configure An Integration
-
-```yaml
-apis:
-  - name: stripe
-    contract:
-      type: openapi
-      url: https://raw.githubusercontent.com/stripe/openapi/master/openapi/spec3.json
-    scan_paths:
-      - src/**/*.ts
-    verify:
-      # Uses a controlled Stripe test account and must be safe to run in CI.
-      command: npm run test:integration:stripe
-      timeout_ms: 120000
-
-# Optional. This is used only by `suggest`, never by CI.
-ai:
-  provider: openai
-  model: gpt-4o-mini
-```
-
-Keep credentials in your normal CI secret manager. The verification command is your integration test, so it should use a dedicated test account, fixtures, and resources that are safe to create or modify.
-
-## Daily Workflow
-
-Run a compatibility check from a branch or CI job:
-
-```bash
-npm run dev -- ci --fail-on breaking --output api-report.json
-```
-
-When a provider contract differs from the approved baseline, Contractbot writes:
-
-```text
-.contractbot/changes/<api>.json
-```
-
-The change-set includes:
-
-- The old approved contract and the new provider contract.
-- The structural diff.
-- The configured verification command and its result.
-- Source metadata and timestamps.
-
-The old baseline remains unchanged. Review the report and change-set, update the integration, then rerun verification. Once the migration is safe, accept the provider's new contract explicitly:
-
-```bash
-npm run dev -- accept stripe
-git add .contractbot/baselines
-git commit -m "chore: accept Stripe contract update"
-```
-
-## Optional AI Suggestions
-
-After a confirmed change-set exists, you may ask an LLM for a local migration draft:
-
-```bash
-npm run dev -- suggest stripe
-```
-
-This is optional and manual. It reads the affected source files and sends them to the configured LLM provider. It saves a patch locally; it does not edit source files, create a branch, open a pull request, or run in CI. Review a patch before applying it:
-
-```bash
-npm run dev -- apply <patch-id> --interactive
-```
-
-## Discovery Confidence
-
-Setup looks for SDK packages, environment-variable names, and literal API hosts. These signals have different confidence levels:
-
-| Signal | Confidence | Example |
-| --- | --- | --- |
-| Provider-specific package import | Usually high | `stripe`, `openai` |
-| Provider-specific host | Medium to high | `https://api.stripe.com` |
-| Environment variable name | Medium | `STRIPE_SECRET_KEY` |
-| Generic host or key | Low | `API_KEY`, `api.acme.dev` |
-
-Contractbot must never be trusted to pick the contract source without review. Unknown APIs remain unresolved until you provide a source or choose to ignore them.
-
-### Optional AI Discovery
-
-Run `contractbot discover --dir <project>` to inspect the structured evidence Contractbot collected. To ask a configured LLM to interpret that evidence, opt in explicitly:
-
-```bash
-contractbot discover --dir <project> --ai
-```
-
-AI discovery sends only dependency names, environment-variable names, and hostnames. It does not send source-file contents or secret values, and it never writes `.contractbot.yml`. Treat its output as a review queue: verify each suggested provider and contract source before adding it to configuration or creating a baseline.
-
-For a bounded agent investigation over cited local call-site evidence, opt in explicitly:
-
-```bash
-contractbot discover --dir <project> --agent
-```
-
-The agent first sees an evidence index, requests up to eight exact evidence values, then receives only the matching short call-site contexts. Its final provider classifications are rejected unless every file, line, kind, and value citation matches deterministic evidence. Agent output remains a review queue and never writes configuration.
-
-Validated findings are saved locally to `.contractbot/reviews/discovery.json` and can be inspected with `contractbot review`. They remain ignored by Git and require a human to approve, edit, ignore, or mark an integration internal before configuration changes.
-
-Explicit review actions are the only path from an agent finding to configuration:
-
-```bash
-contractbot review ignore <provider>
-contractbot review internal <provider>
-contractbot review add <provider> --contract sdk_package --source <approved-package>
-contractbot review add <provider> --contract openapi --source <approved-spec-url>
-```
-
-`review add` requires a human-approved source. It never adopts an AI-suggested source automatically.
-
-## Commands
-
-| Command | Purpose |
-| --- | --- |
-| `setup` | Discover candidate API dependencies and write configuration. |
-| `discover` | Print identifier-only discovery evidence; `--ai` adds opt-in LLM suggestions. |
-| `review` | Inspect agent findings or explicitly add, ignore, or mark a finding internal. |
-| `baseline` | Fetch an approved OpenAPI baseline. |
-| `ci` | Compare the current contract to the approved baseline and run verification on change. |
-| `show <api>` | Read a pending change-set in the terminal. |
-| `accept <api>` | Promote a reviewed pending change-set to the approved baseline. |
-| `suggest <api>` | Generate an optional local AI migration draft from a pending change-set. |
-| `apply <patch-id>` | Interactively apply a saved migration draft. |
-| `resolve` | Resolve an explicitly configured but unresolved API source. |
-
-`watch` is currently a non-blocking alias for `ci`. It is not live-response probing.
-
-Changelog-only integrations can use `contract.type: changelog`. Contractbot records the first check as a baseline, then reports newly published entries as review signals. A changelog is not treated as a verified API contract diff.
-
-## Principles
-
-- Contract sources and baselines are explicit and reviewable.
-- CI is deterministic; it does not use AI or make code changes.
-- Your auth-aware integration verification is the compatibility authority.
-- AI is optional assistance after evidence exists, not a decision-maker.
-- A provider that changes its server without publishing a contract, SDK update, or notice cannot be fully detected ahead of time.
-
-## AI Agent Usage
-
-Contractbot is designed to work with coding agents, but agents must not treat a detected change as approval to change production code or accept a new provider contract. The repository includes [`AGENTS.md`](AGENTS.md) with the required safe workflow:
-
-```text
-detect -> show evidence -> run verification -> request review -> accept only with explicit approval
-```
-
-`suggest` is optional and sends relevant source files to the configured LLM provider. An agent must obtain explicit approval before invoking it, applying a generated patch, or accepting a change-set.
-
-## Development
-
-```bash
-npm install
-npm test
-npm run test:pack
-npm run build
-npm run dev -- --help
-```
-
-`prepublishOnly` runs tests and package smoke tests. No new package version should be published until the alpha workflow has been validated with real users.
+See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md) for
+project policies.
 
 ## License
 
-MIT
+[MIT](LICENSE)

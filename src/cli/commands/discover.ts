@@ -125,7 +125,10 @@ export function selectAgentClusters<T extends { kind: string; value: string; fil
 }
 
 function clusterScore(cluster: Array<{ kind: string }>): number {
-  return cluster.reduce((score, item) => score + (item.kind === "http_request" || item.kind === "websocket_api" ? 4 : item.kind === "sdk_import" ? 3 : item.kind === "environment_variable" ? 2 : 1), 0);
+  const hasRequest = cluster.some((item) => item.kind === "http_request" || item.kind === "websocket_api");
+  const sdkCount = cluster.filter((item) => item.kind === "sdk_import").length;
+  const hasEnv = cluster.some((item) => item.kind === "environment_variable");
+  return (hasRequest ? 10 : 0) + Math.min(sdkCount, 2) * 6 + (hasEnv ? 1 : 0);
 }
 
 function deduplicateAgentCandidates(candidates: unknown[]): unknown[] {
@@ -155,6 +158,7 @@ export function validateAgentCandidates(response: string, evidence: Array<{ file
       // A generic library is not an integration candidate. Hosted SDK clients
       // must identify a plausible contract family before reaching review.
       if (item.classification === "sdk_client" && item.suggestedContractKind === "unknown") return false;
+      if (item.evidence.every((citation) => (citation as { kind?: string }).kind === "environment_variable")) return false;
       const citationsValid = item.evidence.every((citation) => {
         if (!citation || typeof citation !== "object") return false;
         const cited = citation as { file?: string; line?: number; kind?: string; value?: string };

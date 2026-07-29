@@ -40,6 +40,13 @@ describe("validateAgentCandidates", () => {
     ] });
     expect(validateAgentCandidates(response, [{ file: "src/app.ts", line: 1, kind: "sdk_import", value: "@google/generative-ai" }]).candidates).toMatchObject([{ provider: "gemini" }]);
   });
+
+  it("rejects candidates supported only by environment variables", () => {
+    const response = JSON.stringify({ candidates: [
+      { provider: "deepgram", classification: "external_api", confidence: "high", evidence: [{ file: "scripts/export.py", line: 1, kind: "environment_variable", value: "DEEPGRAM_API_KEY" }], suggestedContractKind: "unknown", sourceConfidence: "high" },
+    ] });
+    expect(validateAgentCandidates(response, [{ file: "scripts/export.py", line: 1, kind: "environment_variable", value: "DEEPGRAM_API_KEY" }]).candidates).toEqual([]);
+  });
 });
 
 describe("clusterIntegrationEvidence", () => {
@@ -49,8 +56,8 @@ describe("clusterIntegrationEvidence", () => {
       { kind: "environment_variable", value: "AWS_REGION", file: "lib/bedrock.ts", line: 2 },
       { kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 },
     ]);
-    expect(clusters[0]).toHaveLength(2);
-    expect(clusters[1]).toEqual([{ kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 }]);
+    expect(clusters[0]).toEqual([{ kind: "http_request", value: "https://api.example.dev", file: "app/route.ts", line: 3 }]);
+    expect(clusters[1]).toHaveLength(2);
   });
 
   it("reserves cluster coverage for Python and Dart evidence", () => {

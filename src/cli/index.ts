@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
+import { createRequire } from "node:module";
 import { setupCommand } from "./commands/setup.js";
 import { initCommand } from "./commands/init.js";
 import { applyCommand } from "./commands/apply.js";
@@ -18,13 +19,15 @@ import { scaffoldCommand } from "./commands/scaffold.js";
 import { logger, LogLevel, OutputFormat } from "../logger.js";
 
 const program = new Command();
+const require = createRequire(import.meta.url);
+const { version } = require("../../package.json") as { version: string };
 
 program
   .name("contractbot")
   .description(
     "Review approved OpenAPI contract changes before deployment.",
   )
-  .version("0.1.0")
+  .version(version)
   .option("--log-level <level>", "Log level: debug, info, warn, error", "info")
   .option("--log-file <path>", "Write structured JSON logs to file")
   .option("--json", "Output machine-readable JSON instead of human-formatted text", false)

@@ -114,11 +114,6 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       }
 
       const fetched = await fetchSpec(specUrl, { apiName: api.name });
-      if (fetched.notModified) {
-        spinner.succeed(`${api.name}: Stable (ETag)`);
-        reports.push({ api: api.name, status: "stable", breaking: 0, nonBreaking: 0 });
-        continue;
-      }
       const newSpec = fetched.spec;
       const baseline = await getBaseline(api.name);
 
@@ -129,15 +124,17 @@ export async function ciCommand(options: CiOptions): Promise<void> {
       }
 
       const diff = diffSpecs(api.name, baseline.spec, newSpec);
-      await cacheSpec(api.name, newSpec, {
-        etag: fetched.etag,
-        lastModified: fetched.lastModified,
-        url: specUrl,
-      });
+      if (!fetched.notModified) {
+        await cacheSpec(api.name, newSpec, {
+          etag: fetched.etag,
+          lastModified: fetched.lastModified,
+          url: specUrl,
+        });
+      }
 
       if (diff.changes.length === 0) {
         await clearChangeSet(api.name);
-        spinner.succeed(`${api.name}: Stable`);
+        spinner.succeed(`${api.name}: Stable${fetched.notModified ? " (ETag)" : ""}`);
         reports.push({ api: api.name, status: "stable", breaking: 0, nonBreaking: 0 });
         continue;
       }

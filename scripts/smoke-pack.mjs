@@ -90,6 +90,11 @@ async function main() {
     );
     console.log("→ contractbot --help ok");
 
+    const { version } = JSON.parse(await readFile(join(root, "package.json"), "utf-8"));
+    const { stdout: installedVersion } = await run(bin, ["--version"], { cwd: installDir });
+    assert(installedVersion.trim() === version, `cli --version expected ${version}, got ${installedVersion.trim()}`);
+    console.log("→ contractbot --version matches package");
+
     // Fixture app with a real package.json dep signal
     await mkdir(join(fixture, "src"), { recursive: true });
     await writeFile(

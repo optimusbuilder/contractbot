@@ -1,6 +1,6 @@
 {
   "name": "contractbot",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Review approved OpenAPI contract changes and verify compatibility in CI.",
   "type": "module",
   "bin": {

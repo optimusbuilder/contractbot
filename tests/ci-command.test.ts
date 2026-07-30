@@ -4,6 +4,7 @@ import { rm, writeFile } from "fs/promises";
 import { ciCommand } from "../src/cli/commands/ci.js";
 import {
   clearChangeSet,
+  cacheSpec,
   getBaseline,
   getChangeSet,
   saveBaseline,
@@ -55,5 +56,28 @@ describe("ciCommand", () => {
     expect(changeSet?.nextSpec.info?.version).toBe("2");
     expect(changeSet?.diff.breakingCount).toBe(1);
     expect(changeSet?.verification?.passed).toBe(true);
+  });
+
+  it("compares a cached spec when the provider returns 304", async () => {
+    await saveBaseline(API, "https://example.com/openapi.json", {
+      openapi: "3.0.0",
+      info: { version: "1" },
+      paths: { "/users": { get: { responses: {} } }, "/removed": { get: { responses: {} } } },
+    });
+    await cacheSpec(API, {
+      openapi: "3.0.0",
+      info: { version: "1" },
+      paths: { "/users": { get: { responses: {} } } },
+    }, { etag: "unchanged" });
+    await writeFile(
+      CONFIG,
+      `apis:\n  - name: ${API}\n    contract:\n      type: openapi\n      url: https://example.com/openapi.json\n    scan_paths: []\n`,
+      "utf-8",
+    );
+    vi.stubGlobal("fetch", vi.fn(async () => ({ status: 304, headers: { get: () => null } })));
+
+    await ciCommand({ config: CONFIG, failOn: "none" });
+
+    expect((await getChangeSet(API))?.diff.breakingCount).toBe(1);
   });
 });

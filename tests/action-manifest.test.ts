@@ -4,7 +4,8 @@ import { parse } from "yaml";
 
 describe("GitHub Action manifest", () => {
   it("is a composite action that builds and runs Contractbot from its source", async () => {
-    const manifest = parse(await readFile("action.yml", "utf-8")) as {
+    const text = await readFile("action.yml", "utf-8");
+    const manifest = parse(text) as {
       inputs?: Record<string, { default?: string }>;
       runs?: { using?: string; steps?: Array<Record<string, string>> };
     };
@@ -16,5 +17,7 @@ describe("GitHub Action manifest", () => {
     expect(manifest.runs?.steps?.some((step) => step.run?.includes("npm run build --prefix \"$GITHUB_ACTION_PATH\""))).toBe(true);
     expect(manifest.runs?.steps?.some((step) => step.run?.includes("dist/cli/index.js\" ci"))).toBe(true);
     expect(manifest.runs?.steps?.some((step) => step.uses === "actions/upload-artifact@v4")).toBe(true);
+    expect(text).not.toContain("cache-dependency-path:");
+    expect(text).not.toContain("cache: npm");
   });
 });
